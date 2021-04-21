@@ -115,6 +115,4 @@ if __name__ == "__main__":
     if not args.pb and not args.xml:
         sys.exit("Please pass either a frozen pb or IR xml/bin model")
     
-    run_bench(xml=args.xml, pb=args.pb, save_folder=args.save_folder,
-              report_dir=args.report_dir, niter=args.niter,
-              api=args.api, proto=args.proto, nireq=args.nireq)
+    # TODO reattach the converter inference etc

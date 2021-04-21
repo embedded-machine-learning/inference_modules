@@ -15,10 +15,10 @@ __license__ = "Apache 2.0"
 
 def test_optimize_network(network=""):
     test_net = Path('tests','networks','annette_bench1.pb')
-    ncs2.optimize_network(test_net, source_fw = "tf", network = "tmp_net", image = [1, 1, 1, 3] , input_node = "data", save_folder = "tmp")
+    ncs2.optimize_network(test_net, source_fw = "tf", network = "tmp_net", image = [1, 1, 1, 3] , input_node = "data", save_folder = "tests/tmp")
 
 def test_run_network(network=""):
-    test_net = Path('tmp','annette_bench1.xml')
+    test_net = Path('tests','tmp','annette_bench1.xml')
     ncs2.run_network(test_net)
 
 def test_read_ncs2_report(network="cf_resnet50"):
