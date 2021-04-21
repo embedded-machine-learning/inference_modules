@@ -10,7 +10,7 @@ from time import sleep, time
 import numpy as np
 import logging
 
-def optimize_network(pb, source_fw = "tf", network = "tmp_net", image = [1, 224, 224, 3] , input_node = "data", save_folder = "tests/tmp"):
+def optimize_network(pb, source_fw = "tf", network = "tmp_net", image = [1, 224, 224, 3] , input_node = "data", save_folder = "./tmp"):
     mo_file = os.path.join("/", "opt", "intel", "openvino",
     "deployment_tools", "model_optimizer", "mo.py")
 
@@ -62,7 +62,7 @@ def optimize_network(pb, source_fw = "tf", network = "tmp_net", image = [1, 224,
     
     return
 
-def run_network(xml_path = None, report_dir = "./", hardware = "MYRIAD", nireq = 1, niter = 100, api = "sync"):
+def run_network(xml_path = None, report_dir = "./tmp", hardware = "MYRIAD", nireq = 1, niter = 10, api = "sync"):
 
     if not os.path.isdir(report_dir):
         os.mkdir(report_dir)
@@ -73,7 +73,7 @@ def run_network(xml_path = None, report_dir = "./", hardware = "MYRIAD", nireq =
         print("benchmark_app not found at:", bench_app_file)
 
     c_bench = ("python3 " + bench_app_file +
-    " -m "  + xml_path +
+    " -m "  + str(xml_path) +
     " -d " + hardware +
     " -b 1 " +
     " -api " + api +
@@ -85,51 +85,6 @@ def run_network(xml_path = None, report_dir = "./", hardware = "MYRIAD", nireq =
     # start inference
     if os.system(c_bench):
         print("An error has occured during benchmarking!")
-
-def run_bench(daq_device, low_channel, high_channel, input_mode,ranges, samples_per_channel, rate, scan_options, flags,
-              data, data_dir, data_fname,  power_measurement, index_pm,
-              xml = "", pb = "",save_folder = "./tmp", report_dir = "report", niter = 100, api = "sync", proto="", nireq=1):
-
-    global bench_over
-
-    # start measurement in parallel to inference
-    #daq_measurement(low_channel, high_channel, input_mode,ranges, samples_per_channel, rate, scan_options, flags, data)
-
-    if uldaq_import and power_measurement == "True":
-        x = threading.Thread(target=daq_measurement, args=(daq_device, low_channel, high_channel, input_mode,
-                        ranges, samples_per_channel,
-                        rate, scan_options, flags, data, data_dir, data_fname, index_pm, api, niter, nireq))
-        x.start()
-
-    c_bench = ("python3 " + bench_app_file +
-    " -m "  + xml_path +
-    " -d MYRIAD " +
-    " -b 1 " +
-    " -api " + api +
-    " -nireq " + str(nireq) +
-    " -niter " + str(niter) +
-    " --report_type average_counters" +
-    " --report_folder " + report_dir)
-
-    # start inference
-    if os.system(c_bench):
-        print("An error has occured during benchmarking!")
-
-    new_avg_bench_path = os.path.join(report_dir, "_".join(("bacr", model_name.split(".pb")[0], str(index_pm), api,
-                                                          "n" + str(niter), "ni" + str(nireq) + ".csv")))
-    new_stat_rep_path = os.path.join(report_dir, "_".join(("stat_rep", model_name.split(".pb")[0], str(index_pm), api,
-                                                           "n" + str(niter), "ni" + str(nireq) + ".csv")))
-    # rename the default report file name
-    if os.path.isfile(os.path.join(report_dir, "benchmark_average_counters_report.csv")):
-        os.rename(os.path.join(report_dir, "benchmark_average_counters_report.csv"), new_avg_bench_path)
-    if os.path.isfile(os.path.join(report_dir, "benchmark_report.csv")):
-        os.rename(os.path.join(report_dir, "benchmark_report.csv"), new_stat_rep_path)
-
-    bench_over = True # this ends the power data gathering
-    print("**********REPORTS GATHERED**********")
-
-    return new_avg_bench_path, new_stat_rep_path
-
 
 
 if __name__ == "__main__":
