@@ -29,7 +29,7 @@ def optimize_network(pb, source_fw = "tf", network = "tmp_net", image = [1, 224,
     if source_fw == "tf":
         # Tensorflow conversion
         # input_shape for tensorflow : batch, width, height, channels
-        shape = "["+str(image[0])+", "+str(image[1])+", "+str(image[2])+", "+str(image[3])+"]"
+        shape = "["+str(image[0])+","+str(image[1])+","+str(image[2])+","+str(image[3])+"]"
 
         c_conv = ("python3 " + mo_file +
         " --input_model " + pb +
@@ -42,7 +42,7 @@ def optimize_network(pb, source_fw = "tf", network = "tmp_net", image = [1, 224,
         # Caffe or Darknet conversion
         # input_shape : batch, channels, width, height
         input_proto =  pb.split("/deploy.caffemodel")[0] + "/deploy.prototxt"
-        shape = "["+image[0]+", "+image[2]+", "+image[3]+", "+image[1]+"]"
+        shape = "["+str(image[0])+","+str(image[2])+","+str(image[3])+","+str(image[1])+"]"
 
         if "SPnet" in pb:
             input_node = "demo"
@@ -56,9 +56,8 @@ def optimize_network(pb, source_fw = "tf", network = "tmp_net", image = [1, 224,
         " --data_type FP16 " +
         " --input_shape " + shape +
         " --input " + input_node) # input node sometimes called demo)
-
+    
     if os.system(c_conv):
-        print(c_conv)
         print("\nAn error has occured during conversion!\n")
 
 
