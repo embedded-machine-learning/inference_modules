@@ -7,6 +7,7 @@ import pickle
 import pandas
 import argparse
 import json
+from pathlib import Path
 
 
 def add_measured_to_input(time_df, input_df, measured_df):
@@ -77,7 +78,7 @@ def read_report(report, out_file = None, format=None):
     Returns: none
     """
 
-    data = pandas.read_csv(os.path.join(report), sep=";")
+    data = pandas.read_csv(Path(report), sep=";")
     # rename the column names for better readability and understanding
     data.columns = ["LayerName","ExecStatus","LayerType","ExecType","RunTime(ms)","CpuTime(ms)"]
 
