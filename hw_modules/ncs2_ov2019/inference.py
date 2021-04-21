@@ -59,9 +59,10 @@ def optimize_network(pb, source_fw = "tf", network = "tmp_net", image = [1, 224,
     
     if os.system(c_conv):
         print("\nAn error has occured during conversion!\n")
+    
+    return
 
-
-def run_network(report_dir):
+def run_network(xml_path = None, report_dir = "./", hardware = "MYRIAD", nireq = 1, niter = 100, api = "sync"):
 
     if not os.path.isdir(report_dir):
         os.mkdir(report_dir)
@@ -73,7 +74,7 @@ def run_network(report_dir):
 
     c_bench = ("python3 " + bench_app_file +
     " -m "  + xml_path +
-    " -d MYRIAD " +
+    " -d " + hardware +
     " -b 1 " +
     " -api " + api +
     " -nireq " + str(nireq) +
@@ -85,27 +86,11 @@ def run_network(report_dir):
     if os.system(c_bench):
         print("An error has occured during benchmarking!")
 
-    new_avg_bench_path = os.path.join(report_dir, "_".join(("bacr", model_name.split(".pb")[0], str(index_pm), api,
-                                                          "n" + str(niter), "ni" + str(nireq) + ".csv")))
-    new_stat_rep_path = os.path.join(report_dir, "_".join(("stat_rep", model_name.split(".pb")[0], str(index_pm), api,
-                                                           "n" + str(niter), "ni" + str(nireq) + ".csv")))
-    # rename the default report file name
-    if os.path.isfile(os.path.join(report_dir, "benchmark_average_counters_report.csv")):
-        os.rename(os.path.join(report_dir, "benchmark_average_counters_report.csv"), new_avg_bench_path)
-    if os.path.isfile(os.path.join(report_dir, "benchmark_report.csv")):
-        os.rename(os.path.join(report_dir, "benchmark_report.csv"), new_stat_rep_path)
-
-    bench_over = True # this ends the power data gathering
-    print("**********REPORTS GATHERED**********")
-
-    return new_avg_bench_path, new_stat_rep_path
-
 def run_bench(daq_device, low_channel, high_channel, input_mode,ranges, samples_per_channel, rate, scan_options, flags,
               data, data_dir, data_fname,  power_measurement, index_pm,
               xml = "", pb = "",save_folder = "./tmp", report_dir = "report", niter = 100, api = "sync", proto="", nireq=1):
 
     global bench_over
-
 
     # start measurement in parallel to inference
     #daq_measurement(low_channel, high_channel, input_mode,ranges, samples_per_channel, rate, scan_options, flags, data)
