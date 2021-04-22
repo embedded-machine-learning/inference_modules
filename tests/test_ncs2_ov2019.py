@@ -13,19 +13,19 @@ __author__ = "Matthias Wess"
 __copyright__ = "Christian Doppler Laboratory for Embedded Machine Learning"
 __license__ = "Apache 2.0"
 
-def test_optimize_network(network=""):
-    test_net = Path('tests','networks','annette_bench1.pb')
+def test_optimize_network(network="annette_bench1.pb"):
+    test_net = Path('tests','networks',network)
     ncs2.optimize_network(test_net, source_fw = "tf", network = "tmp_net", image = [1, 1, 1, 3] , input_node = "data", save_folder = "tests/tmp")
 
     assert True
 
-def test_run_network(network=""):
-    test_net = Path('tests','tmp','annette_bench1.xml')
-    ncs2.run_network(test_net)
+def test_run_network(network="annette_bench1.xml"):
+    test_net = Path('tests','tmp',network)
+    ncs2.run_network(test_net, report_dir = "./tests/data/ncs2_ov2019")
 
     assert True
 
-def test_read_ncs2_report(network="cf_inceptionv3_imagenet_299_299_11.4G_avg_cnt_rep"):
+def test_read_ncs2_report(network="benchmark_average_counters_report"):
     report_file = Path('tests','data','ncs2_ov2019',network+'.csv')
     ncs2.read_report(report_file)
 
