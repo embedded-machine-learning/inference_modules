@@ -9,7 +9,7 @@ import numpy as np
 import logging
 
 def optimize_network(pb, source_fw = "tf", network = "tmp_net", image = [1, 224, 224, 3] , input_node = "data", save_folder = "./tmp"):
-    mo_file = os.path.join("/", "opt", "intel", "openvino",
+    mo_file = os.path.join("/", "opt", "intel", "openvino_2021",
     "deployment_tools", "model_optimizer", "mo.py")
 
     pb = str(pb)
@@ -64,42 +64,47 @@ def optimize_network(pb, source_fw = "tf", network = "tmp_net", image = [1, 224,
     
     return xml_path
 
-def run_network(xml_path = None, report_dir = "./tmp", hardware = "MYRIAD", batch = 1, nireq = 1, niter = 10, api = "sync"):
+def run_network(xml_path = None, report_dir = "./tmp", hardware = "MYRIAD", batch = 1, nireq = 1, niter = 10, api = "async"):
 
     if not os.path.isdir(report_dir):
         os.mkdir(report_dir)
 
-    bench_app_file = os.path.join("/","opt","intel", "openvino",
+    bench_app_file = os.path.join("/","opt","intel", "openvino_2021",
     "deployment_tools", "tools", "benchmark_tool", "benchmark_app.py")
     if not os.path.isfile(bench_app_file):
-        logging.info("benchmark_app not found at:", bench_app_file)
+        logging.error("benchmark_app not found at:", bench_app_file)
         assert False
 
     c_bench = ("python3 " + bench_app_file +
-    " -m "  + str(xml_path) +
+    " --path_to_model " + str(xml_path) +
     " -d " + hardware +
     " -b " + str(batch) +
     " -api " + api +
     " -nireq " + str(nireq) +
     " -niter " + str(niter) +
-    " --report_type average_counters" +
+    " --perf_counts " +
+    " --report_type average_counters " +
     " --report_folder " + report_dir)
 
     # start inference
+    logging.info("Executing command: " + c_bench)
+    os.system(c_bench)
+    return
     if os.system(c_bench):
         logging.info("An error has occured during benchmarking!")
         assert False
 
 
 def main():
+    logging.basicConfig(level=logging.INFO)
     parser = argparse.ArgumentParser(description='NCS2 power benchmark')
-    parser.add_argument("-p", '--pb', default='yolov3.pb',
+    parser.add_argument("-p", '--pb',
                         help='intermediade representation', required=False)
-    parser.add_argument("-x", '--xml', default='yolov3.xml',
+    parser.add_argument("-x", '--xml',
                         help='movidius representation', required=False)
     parser.add_argument("-sf", '--save_folder', default='./tmp',
                         help='folder to save the resulting files', required=False)
-    parser.add_argument("-a", '--api', default='sync',
+    parser.add_argument("-a", '--api', default='async',
                         help='synchronous or asynchronous mode [sync, async]',
                         required=False)
     parser.add_argument("-b", '--batch_size', default=1,
@@ -117,15 +122,20 @@ def main():
     args = parser.parse_args()
 
     index_run = 0
+    xml_path = args.xml
 
     if not args.pb and not args.xml:
         logging.error("Invalid model path passed.")
         sys.exit("Please either pass a frozen pb or an IR xml/bin model")
 
     if args.pb:
-        xml_path = optimize_network(args.pb, source_fw="tf", network="tmp_net", image=[1, 416, 416, 3], input_node="inputs",
-                         save_folder=args.save_folder)
+        xml_path = optimize_network(args.pb, source_fw="tf", network="tmp_net", image=[1, 416, 416, 3],
+                                    input_node="inputs",
+                                    save_folder=args.save_folder)
         print(xml_path)
+
+    if xml_path:
+        run_network(xml_path=xml_path, report_dir="./reps", hardware="MYRIAD", batch=1, nireq=2, niter=10, api=args.api)
 
     # TODO reattach the converter inference etc
 

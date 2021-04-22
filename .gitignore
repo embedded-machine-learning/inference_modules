@@ -1,1 +1,6 @@
 __pycache__
+venv_2019
+venv_2021
+.idea
+hw_modules/ncs2_ov2019/dev
+hw_modules/ncs2_ov2021/models
