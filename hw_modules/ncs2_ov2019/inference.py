@@ -5,8 +5,6 @@
 import argparse
 import os, sys, threading
 from os import system
-from sys import stdout
-from time import sleep, time
 import numpy as np
 import logging
 
@@ -18,12 +16,12 @@ def optimize_network(pb, source_fw = "tf", network = "tmp_net", image = [1, 224,
 
     # check if necessary files exists
     if not os.path.isfile(mo_file):
-        print("model optimizer not found at:", mo_file)
+        logging.info("model optimizer not found at:", mo_file)
         assert False
 
     # if no .pb is given look if an .xml already exists and take it
     # if no .pb or .xml is given exit!
-    print("\n**********Movidius FP16 conversion**********")
+    logging.info("\n**********Movidius FP16 conversion**********")
     xml_path = ""
     model_name = ""
 
@@ -59,14 +57,14 @@ def optimize_network(pb, source_fw = "tf", network = "tmp_net", image = [1, 224,
         " --input " + input_node) # input node sometimes called demo)
     
     if os.system(c_conv):
-        print("\nAn error has occured during conversion!\n")
+        logging.info("\nAn error has occured during conversion!\n")
         assert False
 
-    print(xml_path)
+    logging.info(xml_path)
     
     return xml_path
 
-def run_network(xml_path = None, report_dir = "./tmp", hardware = "MYRIAD", nireq = 1, niter = 10, api = "sync"):
+def run_network(xml_path = None, report_dir = "./tmp", hardware = "MYRIAD", batch = 1, nireq = 1, niter = 10, api = "sync"):
 
     if not os.path.isdir(report_dir):
         os.mkdir(report_dir)
@@ -74,13 +72,13 @@ def run_network(xml_path = None, report_dir = "./tmp", hardware = "MYRIAD", nire
     bench_app_file = os.path.join("/","opt","intel", "openvino",
     "deployment_tools", "tools", "benchmark_tool", "benchmark_app.py")
     if not os.path.isfile(bench_app_file):
-        print("benchmark_app not found at:", bench_app_file)
+        logging.info("benchmark_app not found at:", bench_app_file)
         assert False
 
     c_bench = ("python3 " + bench_app_file +
     " -m "  + str(xml_path) +
     " -d " + hardware +
-    " -b 1 " +
+    " -b " + str(batch) +
     " -api " + api +
     " -nireq " + str(nireq) +
     " -niter " + str(niter) +
@@ -89,7 +87,7 @@ def run_network(xml_path = None, report_dir = "./tmp", hardware = "MYRIAD", nire
 
     # start inference
     if os.system(c_bench):
-        print("An error has occured during benchmarking!")
+        logging.info("An error has occured during benchmarking!")
         assert False
 
 
@@ -104,6 +102,8 @@ if __name__ == "__main__":
     parser.add_argument("-a", '--api', default='sync',
                         help='synchronous or asynchronous mode [sync, async]',
                         required=False)
+    parser.add_argument("-b", '--batch_size', default=1,
+                        help='batch size, typically 1', required=False)
     parser.add_argument("-n", '--niter', default=10,
                         help='number of iterations', required=False)
     parser.add_argument('--nireq', default=1,
