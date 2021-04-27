@@ -28,13 +28,15 @@ def optimize_network(pb, source_fw = "tf", network = "tmp_net", image = [1, 224,
     if source_fw == "tf":
         # Tensorflow conversion
         # input_shape for tensorflow : batch, width, height, channels
-        shape = "["+str(image[0])+","+str(image[1])+","+str(image[2])+","+str(image[3])+"]"
+        if image:
+            shape = "--input_shape ["+str(image[0])+","+str(image[1])+","+str(image[2])+","+str(image[3])+"]"
+        else:
+            shape = ""
 
         c_conv = ("python3 " + mo_file +
         " --input_model " + pb +
         " --output_dir " + save_folder +
-        " --data_type FP16 " +
-        " --input_shape " + shape)
+        " --data_type FP16 " + shape)
         xml_path = os.path.join(save_folder, pb.split(".pb")[0].split("/")[-1]+".xml")
         logging.debug(xml_path)
     elif source_fw in ["cf", "dk"]:
