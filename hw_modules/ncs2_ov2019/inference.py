@@ -33,9 +33,9 @@ def optimize_network(pb, source_fw = "tf", network = "tmp_net", image = [1, 224,
         else:
             shape = ""
 
-        c_conv = ("python3 " + mo_file +
-        " --input_model " + pb +
-        " --output_dir " + save_folder +
+        c_conv = ("python3 " + str(mo_file) +
+        " --input_model " + str(pb) +
+        " --output_dir " + str(save_folder) +
         " --data_type FP16 " + shape)
         xml_path = os.path.join(save_folder, pb.split(".pb")[0].split("/")[-1]+".xml")
         logging.debug(xml_path)
@@ -85,7 +85,7 @@ def run_network(xml_path = None, report_dir = "./tmp", hardware = "MYRIAD", batc
     " -nireq " + str(nireq) +
     " -niter " + str(niter) +
     " --report_type average_counters" +
-    " --report_folder " + report_dir)
+    " --report_folder " + str(report_dir))
 
     # start inference
     if os.system(c_bench):
