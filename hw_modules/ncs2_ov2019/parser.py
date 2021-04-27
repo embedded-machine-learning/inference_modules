@@ -8,6 +8,7 @@ import pandas
 import argparse
 import json
 from pathlib import Path
+import logging
 
 
 def add_measured_to_input(time_df, input_df, measured_df):
@@ -97,7 +98,7 @@ def read_report(report, out_file = None, format=None):
         outfile = out_file
     # construct the pickle file name from the report name
     outfile = "".join(str(report).split(".csv")[0].split("/")[1])
-    print(outfile)
+    logging.debug(outfile)
     
     if format == "pickle":
         # open a new file and write extracted and modified data using pickle
@@ -107,11 +108,20 @@ def read_report(report, out_file = None, format=None):
         with open(os.path.join(outfolder, outfile + ".json"), "wb") as out_f:
             json.dump(data, out_f)
     else:
-        print("Format:", format, " not implemented!")
+        logging.debug("Format:", format, " not implemented!")
     
-    print(data)
-
     return data
+
+def r2a(report):
+    data = read_report(report)
+    data = data[data['ExecStatus'] == 'EXECUTED']
+    data['RunTime(ms)'] = data['RunTime(ms)'] + data['CpuTime(ms)']
+
+    result = pandas.DataFrame(data[['LayerName','RunTime(ms)']].to_numpy(),columns=['name','time(ms)'])
+    print(data)
+    print(result)
+
+    return result
 
 
 def extract_data_from_folder(infold, outfold):
