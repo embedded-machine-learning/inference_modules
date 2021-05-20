@@ -10,6 +10,7 @@ import logging
 import tensorflow as tf
 from tensorflow.python.client import timeline
 import time
+import logging
 
 def optimize_network(pb, source_fw = "tf", network = "tmp_net", image = [1, 224, 224, 3] , input_node = "data", save_folder = "./tmp"):
     return True 
@@ -19,7 +20,6 @@ def run_network(xml_path = None, report_dir = "./tmp", hardware = "MYRIAD", batc
 
 
 def run_inference(pb, source_fw = "tf", network = "tmp_net", image = [1, 224, 224, 3] , input_node = "Placeholder", output_node = "flatten_Reshape", save_folder = "./database/benchmarks/tmp/"):
-    print(pb)
     model_filepath = str(pb)
 
     with tf.gfile.GFile(model_filepath, 'rb') as f:

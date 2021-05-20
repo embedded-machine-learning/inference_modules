@@ -76,9 +76,11 @@ def read_report(report, out_file = None, format=None):
         report: filename of the report where the data will be extracted
         format: data format to save the data with - either pickle or json
 
-    Returns: none
+    Returns: False if File does not exist 
     """
 
+    if not os.path.exists(Path(report)):
+        return False
     data = pandas.read_csv(Path(report), sep=";")
     # rename the column names for better readability and understanding
     data.columns = ["LayerName","ExecStatus","LayerType","ExecType","RunTime(ms)","CpuTime(ms)"]
@@ -114,6 +116,10 @@ def read_report(report, out_file = None, format=None):
 
 def r2a(report):
     data = read_report(report)
+
+    if data is False:
+        return False
+
     data = data[data['ExecStatus'] == 'EXECUTED']
     data['RunTime(ms)'] = data['RunTime(ms)'] + data['CpuTime(ms)']
 

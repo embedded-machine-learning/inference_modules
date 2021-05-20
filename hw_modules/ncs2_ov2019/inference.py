@@ -17,7 +17,7 @@ def optimize_network(pb, source_fw = "tf", network = "tmp_net", image = [1, 224,
     # check if necessary files exists
     if not os.path.isfile(mo_file):
         logging.info("model optimizer not found at:", mo_file)
-        assert False
+        return False
 
     # if no .pb is given look if an .xml already exists and take it
     # if no .pb or .xml is given exit!
@@ -60,7 +60,7 @@ def optimize_network(pb, source_fw = "tf", network = "tmp_net", image = [1, 224,
     
     if os.system(c_conv):
         logging.info("\nAn error has occured during conversion!\n")
-        assert False
+        return False
 
     logging.info(xml_path)
     
@@ -75,7 +75,7 @@ def run_network(xml_path = None, report_dir = "./tmp", hardware = "MYRIAD", batc
     "deployment_tools", "tools", "benchmark_tool", "benchmark_app.py")
     if not os.path.isfile(bench_app_file):
         logging.info("benchmark_app not found at:", bench_app_file)
-        assert False
+        return False
 
     c_bench = ("python3 " + bench_app_file +
     " -m "  + str(xml_path) +
@@ -90,7 +90,9 @@ def run_network(xml_path = None, report_dir = "./tmp", hardware = "MYRIAD", batc
     # start inference
     if os.system(c_bench):
         logging.info("An error has occured during benchmarking!")
-        assert False
+        return False
+
+    return str(report_dir)+"benchmark_average_counters_report.csv"
 
 
 if __name__ == "__main__":

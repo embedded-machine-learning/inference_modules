@@ -24,7 +24,7 @@ def read_report(report, out_file = None, format=None):
 
     f = open(report)
     report = json.load(f)
-    print(report)
+    #print(report)
 
     result = []
 
@@ -32,7 +32,7 @@ def read_report(report, out_file = None, format=None):
         if 'args' in e.keys():
             if 'name' in e['args'].keys() and 'op' in e['args'].keys():
                 if e['args']['op'] != 'Const' and not ':' in e['args']['name']:
-                    print(e['args']['name'], e['args']['op'], e['dur'])
+                    #print(e['args']['name'], e['args']['op'], e['dur'])
                     result.append([e['args']['name'], e['args']['op'], e['dur']/1000])
     
 
