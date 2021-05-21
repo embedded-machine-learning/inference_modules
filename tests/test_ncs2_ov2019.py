@@ -31,6 +31,12 @@ def test_read_ncs2_report(network="benchmark_average_counters_report"):
 
     assert True
 
+def test_ncs2_r2a(network="benchmark_average_counters_report"):
+    report_file = Path('tests','data','ncs2_ov2019',network+'.csv')
+    ncs2.r2a(report_file)
+
+    assert True
+
 def test_all(network="annette_bench.pb"):
     report_file = Path('tests','data','ncs2_ov2019',network+'.csv')
     test_net = Path('tests','networks','annette_bench1.pb')
@@ -38,7 +44,7 @@ def test_all(network="annette_bench.pb"):
     test_net = Path('tests','tmp','annette_bench1.xml')
     ncs2.run_network(test_net)
     test_report = Path('tmp','benchmark_average_counters_report.csv')
-    ncs2.read_report(test_report)
+    ncs2.r2a(test_report)
 
     assert True
 

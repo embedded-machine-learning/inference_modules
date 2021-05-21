@@ -17,7 +17,7 @@ def optimize_network(pb, source_fw = "tf", network = "tmp_net", image = [1, 224,
     # check if necessary files exists
     if not os.path.isfile(mo_file):
         logging.info("model optimizer not found at:", mo_file)
-        assert False
+        return False
 
     # if no .pb is given look if an .xml already exists and take it
     # if no .pb or .xml is given exit!
@@ -28,13 +28,15 @@ def optimize_network(pb, source_fw = "tf", network = "tmp_net", image = [1, 224,
     if source_fw == "tf":
         # Tensorflow conversion
         # input_shape for tensorflow : batch, width, height, channels
-        shape = "["+str(image[0])+","+str(image[1])+","+str(image[2])+","+str(image[3])+"]"
+        if image:
+            shape = "--input_shape ["+str(image[0])+","+str(image[1])+","+str(image[2])+","+str(image[3])+"]"
+        else:
+            shape = ""
 
-        c_conv = ("python3 " + mo_file +
-        " --input_model " + pb +
-        " --output_dir " + save_folder +
-        " --data_type FP16 " +
-        " --input_shape " + shape)
+        c_conv = ("python3 " + str(mo_file) +
+        " --input_model " + str(pb) +
+        " --output_dir " + str(save_folder) +
+        " --data_type FP16 " + shape)
         xml_path = os.path.join(save_folder, pb.split(".pb")[0].split("/")[-1]+".xml")
         logging.debug(xml_path)
     elif source_fw in ["cf", "dk"]:
@@ -55,13 +57,13 @@ def optimize_network(pb, source_fw = "tf", network = "tmp_net", image = [1, 224,
         " --data_type FP16 " +
         " --input_shape " + shape +
         " --input " + input_node) # input node sometimes called demo)
-    
+
     if os.system(c_conv):
         logging.info("\nAn error has occured during conversion!\n")
-        assert False
+        return False
 
     logging.info(xml_path)
-    
+
     return xml_path
 
 def run_network(xml_path = None, report_dir = "./tmp", hardware = "MYRIAD", batch = 1, nireq = 1, niter = 10, api = "sync"):
@@ -73,7 +75,7 @@ def run_network(xml_path = None, report_dir = "./tmp", hardware = "MYRIAD", batc
     "deployment_tools", "tools", "benchmark_tool", "benchmark_app.py")
     if not os.path.isfile(bench_app_file):
         logging.info("benchmark_app not found at:", bench_app_file)
-        assert False
+        return False
 
     c_bench = ("python3 " + bench_app_file +
     " -m "  + str(xml_path) +
@@ -83,12 +85,14 @@ def run_network(xml_path = None, report_dir = "./tmp", hardware = "MYRIAD", batc
     " -nireq " + str(nireq) +
     " -niter " + str(niter) +
     " --report_type average_counters" +
-    " --report_folder " + report_dir)
+    " --report_folder " + str(report_dir))
 
     # start inference
     if os.system(c_bench):
         logging.info("An error has occured during benchmarking!")
-        assert False
+        return False
+
+    return str(report_dir)+"benchmark_average_counters_report.csv"
 
 
 def main():
