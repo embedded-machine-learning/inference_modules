@@ -7,9 +7,19 @@ import os, sys, threading
 from os import system
 import numpy as np
 import logging
+from power_measurement_utils import power_measurement
+
+try:
+    from uldaq import (get_daq_device_inventory, DaqDevice, AInScanFlag, ScanStatus,
+                       ScanOption, create_float_buffer, InterfaceType, AiInputMode)
+    print("Import of uldaq library for daq-card successful")
+    uldaq_import = True
+except:
+    print("Could not load uldaq library for daq-card")
+    uldaq_import = False
 
 def optimize_network(pb, source_fw = "tf", network = "tmp_net", image = [1, 224, 224, 3] , input_node = "data", save_folder = "./tmp"):
-    mo_file = os.path.join("/", "opt", "intel", "openvino",
+    mo_file = os.path.join("/", "opt", "intel", "openvino_2021",
     "deployment_tools", "model_optimizer", "mo.py")
 
     pb = str(pb)
@@ -43,7 +53,7 @@ def optimize_network(pb, source_fw = "tf", network = "tmp_net", image = [1, 224,
         # Caffe or Darknet conversion
         # input_shape : batch, channels, width, height
         input_proto =  pb.split("/deploy.caffemodel")[0] + "/deploy.prototxt"
-        shape = "["+str(image[0])+","+str(image[2])+","+str(image[3])+","+str(image[1])+"]"
+        shape = "["+str(image[0])+","+str(image[3])+","+str(image[1])+","+str(image[2])+"]"
 
         if "SPnet" in pb:
             input_node = "demo"
@@ -57,6 +67,8 @@ def optimize_network(pb, source_fw = "tf", network = "tmp_net", image = [1, 224,
         " --data_type FP16 " +
         " --input_shape " + shape +
         " --input " + input_node) # input node sometimes called demo)
+        xml_path = os.path.join(save_folder, pb.split(".caffemodel")[0].split("/")[-1] + ".xml")
+        logging.debug(xml_path)
 
     if os.system(c_conv):
         logging.info("\nAn error has occured during conversion!\n")
@@ -71,7 +83,7 @@ def run_network(xml_path = None, report_dir = "./tmp", hardware = "MYRIAD", batc
     if not os.path.isdir(report_dir):
         os.mkdir(report_dir)
 
-    bench_app_file = os.path.join("/","opt","intel", "openvino",
+    bench_app_file = os.path.join("/","opt","intel", "openvino_2021",
     "deployment_tools", "tools", "benchmark_tool", "benchmark_app.py")
     if not os.path.isfile(bench_app_file):
         logging.info("benchmark_app not found at:", bench_app_file)
@@ -93,6 +105,11 @@ def run_network(xml_path = None, report_dir = "./tmp", hardware = "MYRIAD", batc
         return False
 
     return str(report_dir)+"benchmark_average_counters_report.csv"
+
+
+def extract_model_name(name):
+    model_name = name.split("/")[-1]
+    return model_name
 
 
 def main():
@@ -127,12 +144,24 @@ def main():
         sys.exit("Please either pass a frozen pb or an IR xml/bin model")
 
     if args.pb:
-        xml_path = optimize_network(args.pb, source_fw="tf", network="tmp_net", image=[1, 416, 416, 3], input_node="inputs",
+        xml_path = optimize_network(args.pb, source_fw="cf", network="tmp_net", image=[1, 224, 224, 3], input_node="data",
                          save_folder=args.save_folder)
-        print(xml_path)
+        print("xml_path", xml_path)
 
-    # TODO reattach the converter inference etc
+    # start power measurements
+    pm = power_measurement(sampling_rate=500000, data_dir="data_dir", max_duration=60)
+    pm.setup()
 
+    # print(pm.__dict__)
+    test_kwargs = {"model_name": extract_model_name(xml_path), "index_run": 0, "api": args.api,
+                   "niter": args.niter, "nireq": args.nireq, "batch": args.batch_size}
+    if uldaq_import:
+        t_pm = threading.Thread(target=pm.gather_data, kwargs=test_kwargs)
+        t_pm.start()
+
+    run_network(xml_path = xml_path,report_dir = "./tmp", hardware = "MYRIAD", batch = 1, nireq = 1, niter = 10, api = "sync")
+
+    pm.end_bench(True) # stop the power measurement
 
 if __name__ == "__main__":
     main()

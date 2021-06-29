@@ -1,0 +1,28 @@
+Command line parameters
+-m;tests/tmp/annette_bench1.xml
+-d;MYRIAD
+-b;1
+-api;sync
+-nireq;1
+-niter;10
+--report_type;average_counters
+--report_folder;./tests/data/ncs2_ov2019
+
+Configuration setup
+topology;annette_bench1
+target device;MYRIAD
+API;sync
+precision;UNSPECIFIED
+batch size;1
+number of iterations;10
+number of parallel infer requests;1
+duration (ms);0
+
+Execution results
+read network time (ms);45.81
+load network time (ms);1631.16
+total execution time (ms);16.19
+total number of iterations;10
+latency (ms);1.62
+throughput;618.94
+

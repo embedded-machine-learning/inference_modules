@@ -1,0 +1,26 @@
+layerName;execStatus;layerType;execType;realTime (ms);cpuTime (ms)
+concat;NOT_RUN;Concat;StubConcat;0.0;0.0
+conv2d/Relu;OPTIMIZED_OUT;ReLU;<none>;0.0;0.0
+conv2d_1/Relu;OPTIMIZED_OUT;ReLU;<none>;0.0;0.0
+conv2d_2/Relu;OPTIMIZED_OUT;ReLU;<none>;0.0;0.0
+conv2d_3/Relu;OPTIMIZED_OUT;ReLU;<none>;0.0;0.0
+conv2d_4/Relu;OPTIMIZED_OUT;ReLU;<none>;0.0;0.0
+fully_conn/Relu;OPTIMIZED_OUT;ReLU;<none>;0.0;0.0
+x;NOT_RUN;Input;NONE;0.0;0.0
+<Extra>;EXECUTED;<Extra>;Convert;0.073;0.0
+conv2d_2/BiasAdd/Add,conv2d_2/Conv2D;EXECUTED;Convolution;MyriadXHwOp;0.009;0.0
+conv2d_1/BiasAdd/Add,conv2d_1/Conv2D;EXECUTED;Convolution;MyriadXHwOp;0.021;0.0
+conv2d/BiasAdd/Add,conv2d/Conv2D;EXECUTED;Convolution;MyriadXHwOp;0.006;0.0
+Add;EXECUTED;Eltwise;Sum;0.04;0.0
+Add_1;EXECUTED;Eltwise;Sum;0.027;0.0
+separable_conv2d/separable_conv2d/depthwise;EXECUTED;Convolution;MyriadXHwOp;0.013;0.0
+separable_conv2d/BiasAdd/Add,separable_conv2d/separable_conv2d;EXECUTED;Convolution;MyriadXHwOp;0.004;0.0
+conv2d_4/BiasAdd/Add,conv2d_4/Conv2D;EXECUTED;Convolution;MyriadXHwOp;0.004;0.0
+conv2d_3/BiasAdd/Add,conv2d_3/Conv2D;EXECUTED;Convolution;MyriadXHwOp + injected[Pad];0.018;0.0
+max_pool/MaxPool;EXECUTED;Pooling;MyriadXHwOp;0.005;0.0
+concat/Transpose;EXECUTED;Reshape;Copy;0.025;0.0
+flatten/Reshape,fully_conn/Add,fully_conn/MatMul;EXECUTED;FullyConnected;Copy;0.023;0.0
+fully_conn_1/Add,fully_conn_1/MatMul;EXECUTED;FullyConnected;Copy;0.022;0.0
+fully_conn_1/Softmax;EXECUTED;SoftMax;SoftMax;0.024;0.0
+Total;;;;0.314;0.0
+

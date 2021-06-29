@@ -7,7 +7,7 @@ import os
 
 import hw_modules.ncs2_ov2019 as ncs2
 
-print(ncs2.__dict__)
+#print(ncs2.__dict__)
 
 __author__ = "Matthias Wess"
 __copyright__ = "Christian Doppler Laboratory for Embedded Machine Learning"
