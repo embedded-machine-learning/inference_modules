@@ -9,14 +9,6 @@ import numpy as np
 import logging
 from power_measurement_utils import power_measurement
 
-try:
-    from uldaq import (get_daq_device_inventory, DaqDevice, AInScanFlag, ScanStatus,
-                       ScanOption, create_float_buffer, InterfaceType, AiInputMode)
-    print("Import of uldaq library for daq-card successful")
-    uldaq_import = True
-except:
-    print("Could not load uldaq library for daq-card")
-    uldaq_import = False
 
 def optimize_network(pb, source_fw = "tf", network = "tmp_net", image = [1, 224, 224, 3] , input_node = "data", save_folder = "./tmp"):
     mo_file = os.path.join("/", "opt", "intel", "openvino_2021",
