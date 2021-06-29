@@ -1,0 +1,28 @@
+Command line parameters
+-m;tests/tmp/annette_bench1.xml
+-d;MYRIAD
+-b;1
+-api;sync
+-nireq;1
+-niter;10
+--report_type;average_counters
+--report_folder;./tmp
+
+Configuration setup
+topology;annette_bench1
+target device;MYRIAD
+API;sync
+precision;UNSPECIFIED
+batch size;1
+number of iterations;10
+number of parallel infer requests;1
+duration (ms);0
+
+Execution results
+read network time (ms);5.30
+load network time (ms);1627.02
+total execution time (ms);15.98
+total number of iterations;10
+latency (ms);1.58
+throughput;633.07
+
