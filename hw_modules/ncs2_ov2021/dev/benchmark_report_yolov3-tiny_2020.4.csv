@@ -1,0 +1,27 @@
+Command line parameters
+--path_to_model;/home/matvey/projects/models/yolo_models/yolov3_movid/yolov3-tiny.xml
+--perf_counts;
+--report_type;average_counters
+--report_folder;dev/
+-nireq;1
+-niter;10
+-api;sync
+
+Configuration setup
+topology;yolov3-tiny_model
+target device;CPU
+API;sync
+precision;UNSPECIFIED
+batch size;1
+number of iterations;10
+number of parallel infer requests;1
+duration (ms);0
+
+Execution results
+read network time (ms);45.56
+load network time (ms);154.53
+total execution time (ms);224.31
+total number of iterations;10
+latency (ms);21.88
+throughput;45.71
+
