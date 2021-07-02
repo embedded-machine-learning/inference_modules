@@ -23,6 +23,9 @@ class power_measurement():
         """
 
         # define default values
+        self.len_dev = 0
+        self.dev_init = False
+        self.bench_end = False
         self.bench_over = False
         self.daq_device = None
         self.status = ScanStatus.IDLE
@@ -38,6 +41,7 @@ class power_measurement():
         self.input_mode = AiInputMode.DIFFERENTIAL
 
         self.dat_filename = ""
+        self.dat_filepath = "test"
         self.model_name = ""
         self.index_run = 0
         self.api = "sync"
@@ -59,6 +63,8 @@ class power_measurement():
 
         print("Initialized Power Measurement Class.")
 
+        self.setup()
+
     def setup(self):
         """Sets all necessary variables for DAQ-Device operation
 
@@ -68,17 +74,18 @@ class power_measurement():
         interface_type = InterfaceType.ANY
         # Get descriptors for all of the available DAQ devices.
         devices = get_daq_device_inventory(interface_type)
-        number_of_devices = len(devices)
-        if number_of_devices == 0:
-            raise RuntimeError('Error: No DAQ devices found')
+        self.len_dev = len(devices)
+        if self.len_dev == 0:
+            print('Error: No DAQ devices found')
+            return False
 
-        print('Found', number_of_devices, 'DAQ device(s):')
-        for i in range(number_of_devices):
+        print('Found', self.len_dev, 'DAQ device(s):')
+        for i in range(self.len_dev):
             print('  [', i, '] ', devices[i].product_name, ' (',
                   devices[i].unique_id, ')', sep='')
 
         descriptor_index = 0
-        if descriptor_index not in range(number_of_devices):
+        if descriptor_index not in range(self.len_dev):
             raise RuntimeError('Error: Invalid descriptor index')
 
         # Create the DAQ device from the descriptor at the specified index.
@@ -126,19 +133,15 @@ class power_measurement():
         if not os.path.isdir(self.data_dir):
             os.mkdir(self.data_dir)
 
-    def gather_data(self, model_name="", index_run=0, api="sync", niter=10, nireq=1, batch=1):
-        """Start the data acquisition. Fill the data buffer until bench_over is set to True. Save data to file.
+        self.dev_init = True
+        return self.dev_init
+
+    def gather_data(self, kwargs_pm):
+        """Start the data acquisition. Fill the data buffer until bench_end is set to True. Save data to file.
 
         Returns: None
 
         """
-
-        self.model_name = model_name
-        self.index_run = index_run
-        self.api = api
-        self.niter = niter
-        self.nireq = nireq
-        self.batch = batch
 
         print("Starting the power measurement")
         ai_device = self.daq_device.get_ai_device()
@@ -147,19 +150,18 @@ class power_measurement():
                                    self.meas_range, self.total_samples,
                                    self.sampling_rate, self.scan_options, self.flags, self.data)
         index = 0
-        while not self.bench_over:
+        while not self.bench_end:
             # Get the status of the background operation
             status, transfer_status = ai_device.get_scan_status()
             # get current index
             index = transfer_status.current_index
 
         # save data
-        print("Writing power measurement data to file")
-        self.dat_filename = "_".join((self.model_name, str(self.index_run), self.api, "n" + str(self.niter),
-                                                   "ni" + str(self.nireq), "b" + str(self.batch) + ".dat"))
-        dat_filepath = os.path.join(self.data_dir, self.dat_filename)
+        self.dat_filename = "_".join([str(v) for k,v in kwargs_pm.items()]) + ".dat"
+        self.dat_filepath = os.path.join(self.data_dir, self.dat_filename)
+        print("Writing power measurement data to %s" % str(self.dat_filepath))
 
-        with open(dat_filepath, "wb") as f:
+        with open(self.dat_filepath, "wb") as f:
             print("Saving", index, "data points.")
             np.save(f, np.asarray(self.data[0:index])) # save only valid data (up until index)
 
@@ -172,20 +174,33 @@ class power_measurement():
                 self.daq_device.disconnect()
             self.daq_device.release()
         print("Power measurement ended")
+        self.bench_over = True
 
     def end_bench(self, b_val):
         # calling this function with a True ends the data acquisition
-        self.bench_over = b_val
+        self.bench_end = b_val
+        while not self.bench_over:
+            pass
+
+    def get_data_fname(self):
+        return self.dat_filename
+
+    def get_data_fpath(self):
+        return self.dat_filepath
+
+    def start_gather(self, kwargs_pm):
+        if self.dev_init:
+            t_pm = threading.Thread(target=self.gather_data, kwargs={"kwargs_pm":kwargs_pm})
+            t_pm.start()
+
 
 if __name__ == "__main__":
     pm = power_measurement(sampling_rate=500000, data_dir = "data_dir", max_duration=60)
-    pm.setup()
 
     #print(pm.__dict__)
-    test_kwargs = {"model_name" : "awesome_model", "index_run" : 69, "api" : "async", "niter" : 20, "nireq" : 2, "batch" : 2}
-    if uldaq_import:
-        t_pm = threading.Thread(target=pm.gather_data, kwargs=test_kwargs)
-        t_pm.start()
+    test_kwargs = {"model_name" : "awesome_model", "index_run" : 69, "api" : "async", "niter" : 420, "nireq" : 2, "batch" : 2}
+
+    pm.start_gather(test_kwargs)
 
     from time import sleep
     sleep(2)

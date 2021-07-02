@@ -9,14 +9,6 @@ import numpy as np
 import logging
 from power_measurement_utils import power_measurement
 
-try:
-    from uldaq import (get_daq_device_inventory, DaqDevice, AInScanFlag, ScanStatus,
-                       ScanOption, create_float_buffer, InterfaceType, AiInputMode)
-    print("Import of uldaq library for daq-card successful")
-    uldaq_import = True
-except:
-    print("Could not load uldaq library for daq-card")
-    uldaq_import = False
 
 def optimize_network(pb, source_fw = "tf", network = "tmp_net", image = [1, 224, 224, 3] , input_node = "data", save_folder = "./tmp"):
     mo_file = os.path.join("/", "opt", "intel", "openvino_2021",
@@ -112,6 +104,39 @@ def extract_model_name(name):
     return model_name
 
 
+def load_numpy_data(filepath):
+    with open(filepath, "rb") as f:
+        return np.load(f)
+
+
+def process_power_data(data_fpath):
+    """Take a power data file path, extract information from data, delete file
+
+    Args:
+        data_fpath: file path of power data
+
+    Returns: None
+
+    """
+    print("Processing data from", data_fpath)
+
+    # load data from file
+    if os.path.isfile(data_fpath):
+        data = load_numpy_data(data_fpath)
+
+    else:
+        print("Could not load data from", data_fpath)
+        return
+
+    # process data - get metrics from data, store them into a suitable format
+
+
+    # delete data if file path exists
+    if os.path.isfile(data_fpath):
+        print("Removing", data_fpath)
+        #os.remove(data_fname)
+
+
 def main():
     parser = argparse.ArgumentParser(description='NCS2 power benchmark')
     parser.add_argument("-p", '--pb', default='yolov3.pb',
@@ -139,29 +164,32 @@ def main():
 
     index_run = 0
 
-    if not args.pb and not args.xml:
+    """if not args.pb and not args.xml:
         logging.error("Invalid model path passed.")
         sys.exit("Please either pass a frozen pb or an IR xml/bin model")
 
     if args.pb:
         xml_path = optimize_network(args.pb, source_fw="cf", network="tmp_net", image=[1, 224, 224, 3], input_node="data",
                          save_folder=args.save_folder)
-        print("xml_path", xml_path)
-
+        print("xml_path", xml_path)"""
+    xml_path = "./tmp/deploy.xml"
     # start power measurements
     pm = power_measurement(sampling_rate=500000, data_dir="data_dir", max_duration=60)
-    pm.setup()
 
     # print(pm.__dict__)
-    test_kwargs = {"model_name": extract_model_name(xml_path), "index_run": 0, "api": args.api,
+    test_kwargs =  {"model_name": extract_model_name(xml_path), "index_run": index_run, "api": args.api,
                    "niter": args.niter, "nireq": args.nireq, "batch": args.batch_size}
-    if uldaq_import:
-        t_pm = threading.Thread(target=pm.gather_data, kwargs=test_kwargs)
-        t_pm.start()
+
+    pm.start_gather(test_kwargs)
 
     run_network(xml_path = xml_path,report_dir = "./tmp", hardware = "MYRIAD", batch = 1, nireq = 1, niter = 10, api = "sync")
 
     pm.end_bench(True) # stop the power measurement
+
+    # TODO integrate a processing pipeline for power data
+
+    process_power_data(pm.get_data_fpath())
+
 
 if __name__ == "__main__":
     main()
