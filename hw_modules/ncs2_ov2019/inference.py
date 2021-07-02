@@ -7,6 +7,8 @@ import os, sys, threading
 from os import system
 import numpy as np
 import logging
+import sys 
+sys.path.append('..')
 from power_measurement_utils import power_measurement
 
 

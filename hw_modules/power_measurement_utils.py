@@ -21,49 +21,50 @@ class power_measurement():
             data_dir: name of the directory where the data files will be stored
             max_duration: maximal duration of the measurement in seconds
         """
-
-        # define default values
-        self.len_dev = 0
         self.dev_init = False
-        self.bench_end = False
-        self.bench_over = False
-        self.daq_device = None
-        self.status = ScanStatus.IDLE
-        self.data_dir = data_dir
+        if uldaq_import:
 
-        self.range_index = 0
-        self.low_channel = 0
-        self.high_channel = 0
-        self.scan_options = ScanOption.CONTINUOUS
-        self.flags = AInScanFlag.DEFAULT
+            # define default values
+            self.len_dev = 0
+            self.bench_end = False
+            self.bench_over = False
+            self.daq_device = None
+            self.status = ScanStatus.IDLE
+            self.data_dir = data_dir
 
-        # The default input mode is DIFFERENTIAL (can be SINGLE_ENDED)
-        self.input_mode = AiInputMode.DIFFERENTIAL
+            self.range_index = 0
+            self.low_channel = 0
+            self.high_channel = 0
+            self.scan_options = ScanOption.CONTINUOUS
+            self.flags = AInScanFlag.DEFAULT
 
-        self.dat_filename = ""
-        self.dat_filepath = "test"
-        self.model_name = ""
-        self.index_run = 0
-        self.api = "sync"
-        self.niter = 1
-        self.nireq = 1
-        self.batch = 1
+            # The default input mode is DIFFERENTIAL (can be SINGLE_ENDED)
+            self.input_mode = AiInputMode.DIFFERENTIAL
 
-        if sampling_rate > 500000:
-            print("sampling rate cannot be larger 500 kS/s! Defaulting to 500 kS/s.")
-            self.sampling_rate = 500000
-        elif sampling_rate < 0:
-            print("sampling rate cannot be negative! Defaulting to 1 S/s.")
-            self.sampling_rate = 1
-        else:
-            self.sampling_rate = sampling_rate
+            self.dat_filename = ""
+            self.dat_filepath = "test"
+            self.model_name = ""
+            self.index_run = 0
+            self.api = "sync"
+            self.niter = 1
+            self.nireq = 1
+            self.batch = 1
 
-        self.total_samples = self.sampling_rate * max_duration # total samples defines the length of data buffer
-        self.data = None # array to contain measurement data
+            if sampling_rate > 500000:
+                print("sampling rate cannot be larger 500 kS/s! Defaulting to 500 kS/s.")
+                self.sampling_rate = 500000
+            elif sampling_rate < 0:
+                print("sampling rate cannot be negative! Defaulting to 1 S/s.")
+                self.sampling_rate = 1
+            else:
+                self.sampling_rate = sampling_rate
 
-        print("Initialized Power Measurement Class.")
+            self.total_samples = self.sampling_rate * max_duration # total samples defines the length of data buffer
+            self.data = None # array to contain measurement data
 
-        self.setup()
+            print("Initialized Power Measurement Class.")
+
+            self.setup()
 
     def setup(self):
         """Sets all necessary variables for DAQ-Device operation
@@ -178,9 +179,10 @@ class power_measurement():
 
     def end_bench(self, b_val):
         # calling this function with a True ends the data acquisition
-        self.bench_end = b_val
-        while not self.bench_over:
-            pass
+        if self.dev_init:
+            self.bench_end = b_val
+            while not self.bench_over:
+                pass
 
     def get_data_fname(self):
         return self.dat_filename
