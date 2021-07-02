@@ -1,12 +1,9 @@
-import argparse
-import os, sys, threading
-from os import system
-from sys import stdout
-from time import sleep, time
+# this file will contain a class, where all the attributes needed to setup the daq card and run measurements will be placed
+import threading, os
 import numpy as np
+import argparse, os, sys, time, csv
+import matplotlib.pyplot as plt
 
-uldaq_import = False
-bench_over = False
 try:
     from uldaq import (get_daq_device_inventory, DaqDevice, AInScanFlag, ScanStatus,
                        ScanOption, create_float_buffer, InterfaceType, AiInputMode)
@@ -14,130 +11,210 @@ try:
     uldaq_import = True
 except:
     print("Could not load uldaq library for daq-card")
+    uldaq_import = False
+
+__author__ = "Matvey Ivanov"
+__copyright__ = "Christian Doppler Laboratory for Embedded Machine Learning"
+__license__ = "Apache 2.0"
 
 
-def clear_eol():
-    """Clear all characters to the end of the line."""
-    stdout.write('\x1b[2K')
+class power_measurement():
+    def __init__(self, sampling_rate=500000, data_dir = "data_dir", max_duration = 60):
+        """Function for initializing default values for the DAQ-Device
+
+        Args:
+            sampling_rate: sampling rate in samples per second, maximum is 500000
+            data_dir: name of the directory where the data files will be stored
+            max_duration: maximal duration of the measurement in seconds
+        """
+
+        # define default values
+        self.len_dev = 0
+        self.dev_init = False
+        self.bench_end = False
+        self.bench_over = False
+        self.daq_device = None
+        self.status = ScanStatus.IDLE
+        self.data_dir = data_dir
+
+        self.range_index = 0
+        self.low_channel = 0
+        self.high_channel = 0
+        self.scan_options = ScanOption.CONTINUOUS
+        self.flags = AInScanFlag.DEFAULT
+
+        # The default input mode is DIFFERENTIAL (can be SINGLE_ENDED)
+        self.input_mode = AiInputMode.DIFFERENTIAL
+
+        self.dat_filename = ""
+        self.dat_filepath = "test"
+        self.model_name = ""
+        self.index_run = 0
+        self.api = "sync"
+        self.niter = 1
+        self.nireq = 1
+        self.batch = 1
+
+        if sampling_rate > 500000:
+            print("sampling rate cannot be larger 500 kS/s! Defaulting to 500 kS/s.")
+            self.sampling_rate = 500000
+        elif sampling_rate < 0:
+            print("sampling rate cannot be negative! Defaulting to 1 S/s.")
+            self.sampling_rate = 1
+        else:
+            self.sampling_rate = sampling_rate
+
+        self.total_samples = self.sampling_rate * max_duration # total samples defines the length of data buffer
+        self.data = None # array to contain measurement data
+
+        print("Initialized Power Measurement Class.")
+
+        self.setup()
+
+    def setup(self):
+        """Sets all necessary variables for DAQ-Device operation
+
+        Returns: None
+
+        """
+        interface_type = InterfaceType.ANY
+        # Get descriptors for all of the available DAQ devices.
+        devices = get_daq_device_inventory(interface_type)
+        self.len_dev = len(devices)
+        if self.len_dev == 0:
+            print('Error: No DAQ devices found')
+            return False
+
+        print('Found', self.len_dev, 'DAQ device(s):')
+        for i in range(self.len_dev):
+            print('  [', i, '] ', devices[i].product_name, ' (',
+                  devices[i].unique_id, ')', sep='')
+
+        descriptor_index = 0
+        if descriptor_index not in range(self.len_dev):
+            raise RuntimeError('Error: Invalid descriptor index')
+
+        # Create the DAQ device from the descriptor at the specified index.
+        self.daq_device = DaqDevice(devices[descriptor_index])
+
+        # Get the AiDevice object and verify that it is valid.
+        ai_device = self.daq_device.get_ai_device()
+
+        if ai_device is None:
+            raise RuntimeError('Error: The DAQ device does not support analog '
+                               'input')
+
+        # Verify the specified device supports hardware pacing for analog input.
+        ai_info = ai_device.get_info()
+
+        if not ai_info.has_pacer():
+            raise RuntimeError('\nError: The specified DAQ device does not '
+                               'support hardware paced analog input')
+
+        # Establish a connection to the DAQ device.
+        descriptor = self.daq_device.get_descriptor()
+        print('\nConnecting to', descriptor.dev_string, '- please wait...')
+        # For Ethernet devices using a connection_code other than the default
+        # value of zero, change the line below to enter the desired code.
+        self.daq_device.connect(connection_code=0)
+        print('\nConnection with', descriptor.dev_string, '- established!')
+
+        # Get the number of channels and validate the high channel number.
+        number_of_channels = ai_info.get_num_chans_by_mode(self.input_mode)
+
+        if self.high_channel >= number_of_channels:
+            self.high_channel = number_of_channels - 1
+        channel_count = self.high_channel - self.low_channel + 1
+
+        # Get a list of supported ranges and validate the range index.
+        ranges = ai_info.get_ranges(self.input_mode)
+        if self.range_index >= len(ranges):
+            range_index = len(ranges) - 1
+        self.meas_range = ranges[1] # ranges[1] = Range.BIP5VOLTS
+
+        # Allocate a buffer to receive the data.
+        self.data = create_float_buffer(channel_count, self.total_samples)
+
+        # make sure the data directory exists
+        if not os.path.isdir(self.data_dir):
+            os.mkdir(self.data_dir)
+
+        self.dev_init = True
+        return self.dev_init
+
+    def gather_data(self, kwargs_pm):
+        """Start the data acquisition. Fill the data buffer until bench_end is set to True. Save data to file.
+
+        Returns: None
+
+        """
+        print("Starting the power measurement")
+        ai_device = self.daq_device.get_ai_device()
+
+        rate = ai_device.a_in_scan(self.low_channel, self.high_channel, self.input_mode,
+                                   self.meas_range, self.total_samples,
+                                   self.sampling_rate, self.scan_options, self.flags, self.data)
+        index = 0
+        while not self.bench_end:
+            # Get the status of the background operation
+            status, transfer_status = ai_device.get_scan_status()
+            # get current index
+            index = transfer_status.current_index
+
+        # save data
+        self.dat_filename = "_".join([str(v) for k,v in kwargs_pm.items()]) + ".dat"
+        self.dat_filepath = os.path.join(self.data_dir, self.dat_filename)
+        print("Writing power measurement data to %s" % str(self.dat_filepath))
+
+        with open(self.dat_filepath, "wb") as f:
+            print("Saving", index, "data points.")
+            np.save(f, np.asarray(self.data[0:index])) # save only valid data (up until index)
+
+        # Stop the acquisition if it is still running, disconnect
+        print("Releasing the device handle")
+        if self.daq_device:
+            if status == ScanStatus.RUNNING:
+                ai_device.scan_stop()
+            if self.daq_device.is_connected():
+                self.daq_device.disconnect()
+            self.daq_device.release()
+        print("Power measurement ended")
+        self.bench_over = True
+
+    def end_bench(self, b_val):
+        # calling this function with a True ends the data acquisition
+        self.bench_end = b_val
+        while not self.bench_over:
+            pass
+
+    def get_data_fname(self):
+        return self.dat_filename
+
+    def get_data_fpath(self):
+        return self.dat_filepath
+
+    def start_gather(self, kwargs_pm):
+        if self.dev_init:
+            t_pm = threading.Thread(target=self.gather_data, kwargs={"kwargs_pm":kwargs_pm})
+            t_pm.start()
+
+def conduct_power_measurement():
+    pm = power_measurement(sampling_rate=500000, data_dir="data_dir", max_duration=60) # instantiate class with some parameters
+
+    # print(pm.__dict__)
+    test_kwargs = {"model_name": "awesome_model", "index_run": 69,
+                   "api": "async", "niter": 420, "nireq": 2, "batch": 1} # define some kwargs for data file name
+    pm.start_gather(test_kwargs) # start the gathering thread
+
+    time.sleep(2) # simulates network execution
+    pm.end_bench(True) # end the benchmark
+    print("Finished")
 
 
-def daq_setup(rate=500000, samples_per_channel=500000*10, resistor=0.1):
-    """Analog input scan example."""
-    global bench_over
-    bench_over = False # beginning of a new cycle
-    daq_device = None
-    status = ScanStatus.IDLE
-    # samples_per_channel (int): the number of A/D samples to collect from each channel in the scan.
-    # rate (float): A/D sample rate in samples per channel per second.
-
-    range_index = 0
-    interface_type = InterfaceType.ANY
-    low_channel = 0
-    high_channel = 0
-    scan_options = ScanOption.CONTINUOUS
-    flags = AInScanFlag.DEFAULT
-
-    # Get descriptors for all of the available DAQ devices.
-    devices = get_daq_device_inventory(interface_type)
-    number_of_devices = len(devices)
-    if number_of_devices == 0:
-        raise RuntimeError('Error: No DAQ devices found')
-
-    print('Found', number_of_devices, 'DAQ device(s):')
-    for i in range(number_of_devices):
-        print('  [', i, '] ', devices[i].product_name, ' (',
-              devices[i].unique_id, ')', sep='')
-
-    descriptor_index = 0
-    if descriptor_index not in range(number_of_devices):
-        raise RuntimeError('Error: Invalid descriptor index')
-
-    # Create the DAQ device from the descriptor at the specified index.
-    daq_device = DaqDevice(devices[descriptor_index])
-
-    # Get the AiDevice object and verify that it is valid.
-    ai_device = daq_device.get_ai_device()
-
-    if ai_device is None:
-        raise RuntimeError('Error: The DAQ device does not support analog '
-                           'input')
-
-    # Verify the specified device supports hardware pacing for analog input.
-    ai_info = ai_device.get_info()
-
-    if not ai_info.has_pacer():
-        raise RuntimeError('\nError: The specified DAQ device does not '
-                           'support hardware paced analog input')
-
-    # Establish a connection to the DAQ device.
-    descriptor = daq_device.get_descriptor()
-    print('\nConnecting to', descriptor.dev_string, '- please wait...')
-    # For Ethernet devices using a connection_code other than the default
-    # value of zero, change the line below to enter the desired code.
-    daq_device.connect(connection_code=0)
-
-    # The default input mode is DIFFERENTIAL.
-    input_mode = AiInputMode.DIFFERENTIAL
-
-    # Get the number of channels and validate the high channel number.
-    number_of_channels = ai_info.get_num_chans_by_mode(input_mode)
-
-    if high_channel >= number_of_channels:
-        high_channel = number_of_channels - 1
-    channel_count = high_channel - low_channel + 1
-
-    # Get a list of supported ranges and validate the range index.
-    ranges = ai_info.get_ranges(input_mode)
-    if range_index >= len(ranges):
-        range_index = len(ranges) - 1
-    meas_range = ranges[1]
-
-    data_dir = "data_dir"
-    if not os.path.isdir(data_dir):
-        os.mkdir(data_dir)
-
-    # define name of a datafile and delete if it exists in the data directory
-    data_fname = "test_data"
-    #if os.path.isfile(os.path.join(data_dir, data_fname)):
-        #os.remove(os.path.join(data_dir, data_fname))
-
-    # Allocate a buffer to receive the data.
-    data = create_float_buffer(channel_count, samples_per_channel)
-    # ranges[1] = Range.BIP5VOLTS
-
-    return daq_device, low_channel, high_channel, input_mode, meas_range, samples_per_channel,  rate, scan_options, flags, data, data_dir, data_fname
+def load_numpy_data(filepath):
+    with open(filepath, "rb") as f:
+        return np.load(f)
 
 
-def daq_measurement(daq_device, low_channel, high_channel, input_mode,
-                    meas_range, samples_per_channel,
-                    rate, scan_options, flags, data, data_dir, data_fname, index_run, api, niter, nireq):
-    # Start the acquisition.
-    global bench_over
-    ai_device = daq_device.get_ai_device()
-
-    rate = ai_device.a_in_scan(low_channel, high_channel, input_mode,
-                               meas_range, samples_per_channel,
-                               rate, scan_options, flags, data)
-    index = 0
-    while not bench_over:
-        # Get the status of the background operation
-        status, transfer_status = ai_device.get_scan_status()
-        # get current index
-        index = transfer_status.current_index
-        # when the index has reached maximal length
-
-        #print("{} {}".format(samples_per_channel, index), end="\r", flush=True)
-
-    # save data
-    #print("jumped to break")
-    with open(os.path.join(data_dir, "_".join((data_fname, str(index_run), api, "n" + str(niter), "ni" + str(nireq) +".dat"))), "wb") as f:
-        np.save(f, np.asarray(data[0:index]))
-
-    # Stop the acquisition if it is still running, disconnect
-    if daq_device:
-        if status == ScanStatus.RUNNING:
-            ai_device.scan_stop()
-        if daq_device.is_connected():
-            daq_device.disconnect()
-        daq_device.release()
-
+if __name__ == "__main__":
+    conduct_power_measurement()

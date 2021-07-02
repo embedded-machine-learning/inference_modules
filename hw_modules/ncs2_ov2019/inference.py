@@ -7,7 +7,7 @@ import os, sys, threading
 from os import system
 import numpy as np
 import logging
-from power_measurement_utils import power_measurement
+from utils import power_measurement, load_numpy_data
 
 
 def optimize_network(pb, source_fw = "tf", network = "tmp_net", image = [1, 224, 224, 3] , input_node = "data", save_folder = "./tmp"):
@@ -104,11 +104,6 @@ def extract_model_name(name):
     return model_name
 
 
-def load_numpy_data(filepath):
-    with open(filepath, "rb") as f:
-        return np.load(f)
-
-
 def process_power_data(data_fpath):
     """Take a power data file path, extract information from data, delete file
 
@@ -162,19 +157,20 @@ def main():
                         help='parse "True" when conducting power measurements', required=False)
     args = parser.parse_args()
 
+    dirname = os.path.dirname(__file__)
     index_run = 0
 
-    """if not args.pb and not args.xml:
+    if not args.pb and not args.xml:
         logging.error("Invalid model path passed.")
         sys.exit("Please either pass a frozen pb or an IR xml/bin model")
 
     if args.pb:
         xml_path = optimize_network(args.pb, source_fw="cf", network="tmp_net", image=[1, 224, 224, 3], input_node="data",
                          save_folder=args.save_folder)
-        print("xml_path", xml_path)"""
-    xml_path = "./tmp/deploy.xml"
+        print("xml_path", xml_path)
+
     # start power measurements
-    pm = power_measurement(sampling_rate=500000, data_dir="data_dir", max_duration=60)
+    pm = power_measurement(sampling_rate=500000, data_dir=os.path.join(dirname,"data_dir"), max_duration=60)
 
     # print(pm.__dict__)
     test_kwargs =  {"model_name": extract_model_name(xml_path), "index_run": index_run, "api": args.api,
@@ -182,7 +178,8 @@ def main():
 
     pm.start_gather(test_kwargs)
 
-    run_network(xml_path = xml_path,report_dir = "./tmp", hardware = "MYRIAD", batch = 1, nireq = 1, niter = 10, api = "sync")
+    run_network(xml_path = xml_path,report_dir = args.save_folder, hardware = "MYRIAD",
+                batch = args.batch_size, nireq = args.nireq, niter = args.niter, api = args.api)
 
     pm.end_bench(True) # stop the power measurement
 
