@@ -2,6 +2,8 @@
 # converts it to a Movidius NCS2 conform Openvino Intermediate Representation format with .xml and .bin files
 # runs inference on the generated model
 
+# Example: python3 inference.py --model_path ../../tests/networks/annette_bench1.pb --save_folder ./tmp/ov_reports/--device CPU
+
 import logging
 import os, sys, threading
 import numpy as np
