@@ -2,3 +2,14 @@ __pycache__
 venv*
 .idea
 hw_modules/ncs2/tmp
+*.xml
+*.pb
+*.bin
+*.tflite
+
+# some platforms (RPi) cannot convert or compile networks
+# include these example annet networks in the repo
+!tests/networks/annette_bench1.pb
+!tests/ov_networks/annette_bench1.bin
+!tests/ov_networks/annette_bench1.xml
+!tests/ov_networks/annette_bench1.mapping
