@@ -17,7 +17,7 @@ def r2a(report):
 def extract_data_from_folder(infold, outfold):
     return True
 
-def main()
+def main():
     return True
 
 if __name__ == "__main__":
