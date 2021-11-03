@@ -6,6 +6,7 @@ hw_modules/ncs2/tmp
 *.pb
 *.bin
 *.tflite
+*.onnx
 
 # some platforms (RPi) cannot convert or compile networks
 # include these example annet networks in the repo
