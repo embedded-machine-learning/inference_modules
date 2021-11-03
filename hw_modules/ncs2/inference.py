@@ -7,9 +7,11 @@
 import logging
 import os, sys
 
+
 __author__ = "Matvey Ivanov"
 __copyright__ = "Christian Doppler Laboratory for Embedded Machine Learning"
 __license__ = "Apache 2.0"
+
 
 def optimize_network(model_path="./models/model.pb", source_fw = "tf", network = "tmp_net", input_shape = [1, 224, 224, 3] , input_node = "data", save_folder = "./tmp"):
     mo_file = os.path.join("/", "opt", "intel", "openvino_2021", "deployment_tools", "model_optimizer", "mo.py")
@@ -21,7 +23,7 @@ def optimize_network(model_path="./models/model.pb", source_fw = "tf", network =
 
     # if no .pb is given look if an .xml already exists and take it
     # if no .pb or .xml is given exit!
-    logging.info("\n**********Movidius FP16 conversion**********")
+    logging.info("\n**********MOVIDIUS FP16 CONVERSION**********")
     xml_path = ""
     model_name = ""
 
@@ -41,7 +43,7 @@ def optimize_network(model_path="./models/model.pb", source_fw = "tf", network =
         logging.debug(xml_path)
     elif source_fw in ["cf", "dk"]:
         # Caffe or Darknet conversion
-        logging.info("Caffe and Darknet conversion not supported yet!")
+        logging.info("\n**********CAFFE AND DARKNET CONVERSION NOT SUPPORTED YET**********")
         """
         # input_shape : batch, channels, width, height
         input_proto =  model_path.split("/deploy.caffemodel")[0] + "/deploy.prototxt"
@@ -69,7 +71,7 @@ def optimize_network(model_path="./models/model.pb", source_fw = "tf", network =
         return False
 
     logging.info("Openvino Intermediate Representation model generated at:", xml_path)
-
+    logging.info("\n**********OPENVINO INTERMEDIATE REPRESENTATION MODEL GENERATED AT {}**********".format(xml_path))
     return xml_path
 
 
@@ -83,6 +85,8 @@ def run_network(xml_path = "./tmp/model.xml", report_dir = "./tmp", hardware = "
     if not os.path.isfile(bench_app_file):
         logging.info("benchmark_app not found at:", bench_app_file)
         return False
+
+    logging.info("\n**********OPENVINO STARTING INFERENCE**********")
 
     c_bench = ("python3 " + bench_app_file +
     " -m "  + xml_path +
@@ -138,6 +142,8 @@ def main():
                          save_folder=args.save_folder)
     if  os.path.isfile(xml_path):
         run_network(xml_path=xml_path, report_dir="./tmp", hardware=args.device, batch=1, nireq=1, niter=10, api="async")
+
+    logging.info("\n**********OPENVINO DONE**********")
 
 if __name__ == "__main__":
     main()

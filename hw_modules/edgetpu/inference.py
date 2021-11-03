@@ -5,14 +5,16 @@
 
 # Example: python3 inference.py --model_path ../../tests/networks/annette_bench1.tflite --save_folder ./tmp --device EDGETPU
 
-import logging, argparse
+import logging
 import os, sys, time
 import tflite_runtime.interpreter as tflite
 import numpy as np
 
+
 __author__ = "Matvey Ivanov"
 __copyright__ = "Christian Doppler Laboratory for Embedded Machine Learning"
 __license__ = "Apache 2.0"
+
 
 def optimize_network(model_path="./models/model.tflite", save_folder = "./tmp"):
     logging.info("\nCompiling:", model_path)
@@ -34,15 +36,18 @@ def optimize_network(model_path="./models/model.tflite", save_folder = "./tmp"):
         logging.info("\nAn error has occured during conversion!\n")
         return False
 
+    logging.info("\n**********EDGE TPU COMPILATION SUCCESSFULL**********")
+
+    # create path to edgetpu model
     edge_model_path = os.path.join(os.getcwd(), save_folder, model_path.split(".tflite")[0].split("/")[-1] + "_edgetpu.tflite")
 
     return edge_model_path
 
 
-
 def run_network(edge_model_path="./tmp/model_edgetpu.tflite", data_dir="./tmp", niter = 10):
     # run inference with the edgetpu compiled model
-    # invoke
+    # setup Interpreter
+    logging.info("\n**********EDGE TPU SETTING UP INTERPRETER**********")
     interpreter = tflite.Interpreter(
         model_path=edge_model_path,
         experimental_delegates=[tflite.load_delegate('libedgetpu.so.1')]
@@ -56,7 +61,8 @@ def run_network(edge_model_path="./tmp/model_edgetpu.tflite", data_dir="./tmp", 
     input_shape = input_details[0]['shape']
     input_data = np.random.randint(0, 255, input_shape, dtype=np.uint8)
 
-    # invoke interpreter
+    logging.info("\n**********EDGE TPU INFERENCE**********")
+    # start inference
     for i in range(niter):
         # print("invoking inference:", i)
         interpreter.set_tensor(input_details[0]['index'], input_data)
@@ -65,6 +71,7 @@ def run_network(edge_model_path="./tmp/model_edgetpu.tflite", data_dir="./tmp", 
 
 
 def main():
+    import argparse
     parser = argparse.ArgumentParser(description='Edge TPU Hardware Module')
     parser.add_argument("-m", '--model_path', default='./models/model.tflite',
                         help='Tflite model with Edge TPU supported operations', required=False)
@@ -74,6 +81,7 @@ def main():
 
     edge_model_path = optimize_network(model_path=args.model_path, save_folder=args.save_folder)
     run_network(edge_model_path=edge_model_path, data_dir=args.save_folder, niter=10)
+    logging.info("\n**********EDGE TPU DONE**********")
 
 
 if __name__ == "__main__":
