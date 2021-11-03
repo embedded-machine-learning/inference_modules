@@ -6,7 +6,9 @@
 # Example: python3 inference.py --model_path ../../tests/networks/annette_bench1.tflite --save_folder ./tmp --device EDGETPU
 
 import logging, argparse
-import os, sys
+import os, sys, time
+import tflite_runtime.interpreter as tflite
+import numpy as np
 
 __author__ = "Matvey Ivanov"
 __copyright__ = "Christian Doppler Laboratory for Embedded Machine Learning"
@@ -32,7 +34,7 @@ def optimize_network(model_path="./models/model.tflite", save_folder = "./tmp"):
         logging.info("\nAn error has occured during conversion!\n")
         return False
 
-    edge_model_path = model_path.split(".tflite")[0] + "_edgetpu.tflite"
+    edge_model_path = os.path.join(os.getcwd(), save_folder, model_path.split(".tflite")[0].split("/")[-1] + "_edgetpu.tflite")
 
     return edge_model_path
 
@@ -41,7 +43,25 @@ def optimize_network(model_path="./models/model.tflite", save_folder = "./tmp"):
 def run_network(edge_model_path="./tmp/model_edgetpu.tflite", data_dir="./tmp", niter = 10):
     # run inference with the edgetpu compiled model
     # invoke
-    return False
+    interpreter = tflite.Interpreter(
+        model_path=edge_model_path,
+        experimental_delegates=[tflite.load_delegate('libedgetpu.so.1')]
+    )
+    interpreter.allocate_tensors()
+
+    # Get input and output tensors.
+    input_details = interpreter.get_input_details()
+
+    # define input
+    input_shape = input_details[0]['shape']
+    input_data = np.random.randint(0, 255, input_shape, dtype=np.uint8)
+
+    # invoke interpreter
+    for i in range(niter):
+        # print("invoking inference:", i)
+        interpreter.set_tensor(input_details[0]['index'], input_data)
+        interpreter.invoke()  # start inference
+        time.sleep(0.01) # pause for 10ms between inference executions
 
 
 def main():
