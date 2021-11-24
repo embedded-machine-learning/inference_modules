@@ -139,7 +139,7 @@ def run_vaitrace(modelname):
         exit
         ''')
  
-        time.sleep(duration_measurement)
+        #time.sleep(duration_measurement)
         pm.end_gather(True)
         output = stdout.read().decode('utf-8')
         stdin.close()
