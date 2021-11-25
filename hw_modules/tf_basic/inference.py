@@ -1,19 +1,12 @@
-# this script takes a neural network in the intermediate representation .pd
-# and converts it to a Movidius NCS2 conform format with .xml and .bin
-# runs inference on the generated model
-
-import argparse
-import os, sys, threading
-from os import system
+import sys, time, logging
 import numpy as np
-import logging 
 import tensorflow as tf
 from tensorflow.python.client import timeline
-import time
-import logging
+
 
 def optimize_network(pb, source_fw = "tf", network = "tmp_net", image = [1, 224, 224, 3] , input_node = "data", save_folder = "./tmp"):
     return True 
+
 
 def run_network(xml_path = None, report_dir = "./tmp", hardware = "MYRIAD", batch = 1, nireq = 1, niter = 10, api = "sync"):
     return True
@@ -70,6 +63,7 @@ def run_inference(pb, source_fw = "tf", network = "tmp_net", image = [1, 224, 22
 
 
 if __name__ == "__main__":
+    import argparse
     parser = argparse.ArgumentParser(description='NCS2 power benchmark')
     parser.add_argument("-p", '--pb', default='yolov3.pb',
                         help='intermediade representation', required=False)

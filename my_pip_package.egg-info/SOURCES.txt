@@ -1,0 +1,10 @@
+README.md
+setup.py
+hw_modules/__init__.py
+hw_modules/tf_basic/__init__.py
+hw_modules/tf_basic/inference.py
+hw_modules/tf_basic/parser.py
+my_pip_package.egg-info/PKG-INFO
+my_pip_package.egg-info/SOURCES.txt
+my_pip_package.egg-info/dependency_links.txt
+my_pip_package.egg-info/top_level.txt

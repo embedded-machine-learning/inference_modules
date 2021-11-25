@@ -5,7 +5,7 @@ from pathlib import Path
 import logging
 import os
 
-import hw_modules.ncs2_ov2019 as ncs2
+import hw_modules.ncs2 as ncs2
 
 #print(ncs2.__dict__)
 
