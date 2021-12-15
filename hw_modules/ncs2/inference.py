@@ -6,6 +6,11 @@
 
 import logging
 import os, sys
+from openvino.inference_engine import IENetwork, IECore, get_version, StatusCode
+from time import sleep
+from datetime import datetime
+from statistics import median
+from powerutils import measurement
 
 
 __author__ = "Matvey Ivanov"
@@ -75,6 +80,56 @@ def optimize_network(model_path="./models/model.pb", source_fw = "tf", network =
     return xml_path
 
 
+def run_network_new(xml_path = "./tmp/model.xml", report_dir = "./tmp", device = "CPU", niter = 10):
+    # initialize power measurement
+    pm = measurement.power_measurement(sampling_rate=500000, data_dir="./tmp", max_duration=60, port=0)
+    model_name_kwargs = {"model_name": "test", "custom_param": "infmod"}
+    ie = IECore()
+
+    bin_path = xml_path.split(".xml")[0] + ".bin"
+    ie_network = ie.read_network(xml_path, bin_path)
+
+    exe_network = ie.load_network(xml_path, device, config={}, num_requests=1)
+
+    # create report directory if it doesn't exist yet
+    if not os.path.isdir(report_dir):
+        os.mkdir(report_dir)
+
+    infer_request = exe_network.requests[0]
+    # warming up - out of scope
+    infer_request.infer()
+
+    # start inference over niter
+    infer_requests = exe_network.requests
+
+    exec_time, iteration = 0, 0
+    times = []
+
+    start_time = datetime.utcnow()
+    pm.start_gather(model_name_kwargs)  # start power measurement
+
+    for iteration in range(niter): # iterate over inferences
+        print("\niteration:", iteration)
+        infer_requests[0].infer()
+        times.append(infer_requests[0].latency)
+        sleep(0.1)
+
+    exec_time = (datetime.utcnow() - start_time).total_seconds()
+
+    # wait the latest inference executions
+    status = exe_network.wait()
+    if status != StatusCode.OK:
+        raise Exception(f"Wait for all requests is failed with status code {status}!")
+
+    pm.end_gather(True) # end powermeasurement
+    print("Power Measurement ended")
+
+    total_duration_sec = (datetime.utcnow() - start_time).total_seconds()
+    times.sort()
+
+    print("Execution time median:", median(times))
+
+
 def run_network(xml_path = "./tmp/model.xml", report_dir = "./tmp", hardware = "CPU", batch = 1, nireq = 1, niter = 10, api = "async"):
 
     if not os.path.isdir(report_dir):
@@ -109,39 +164,27 @@ def run_network(xml_path = "./tmp/model.xml", report_dir = "./tmp", hardware = "
 def main():
     import argparse
     parser = argparse.ArgumentParser(description='NCS2 power benchmark')
-    parser.add_argument("-m", '--model_path', default='yolov3.pb',
-                        help='intermediade representation', required=False)
-    parser.add_argument("-x", '--xml', default='yolov3.xml',
-                        help='movidius representation', required=False)
-    parser.add_argument("-sf", '--save_folder', default='./tmp',
-                        help='folder to save the resulting files', required=False)
-    parser.add_argument("-a", '--api', default='async',
-                        help='synchronous or asynchronous mode [sync, async]',
-                        required=False)
-    parser.add_argument("-d", '--device', default='CPU',
-                        help='device to run inference on',
-                        required=False)
-    parser.add_argument("-b", '--batch_size', default=1,
-                        help='batch size', required=False)
-    parser.add_argument("-n", '--niter', default=10,
-                        help='number of iterations', required=False)
-    parser.add_argument('--nireq', default=1,
-                        help='number of inference requests, used in async mode', required=False)
-    parser.add_argument("-pr", '--proto', default='caffe.proto',
-                        help='Prototext for Xilinx Caffe', required=False)
-    parser.add_argument("-rd", '--report_dir', default='reports',
-                        help='Directory to save reports into', required=False)
+    parser.add_argument("-m", '--model_path', help='intermediade representation', required=False)
+    parser.add_argument("-x", '--xml', help='movidius representation', required=False)
+    parser.add_argument("-sf", '--save_folder', default='./tmp', help='folder to save the resulting files', required=False)
+    parser.add_argument("-d", '--device', default='CPU',  help='device to run inference on', required=False)
+    parser.add_argument("-n", '--niter', default=10,  help='number of iterations', required=False)
+    parser.add_argument('--nireq', default=1,  help='number of inference requests, used in async mode', required=False)
+    parser.add_argument("-rd", '--report_dir', default='reports', help='Directory to save reports into', required=False)
     args = parser.parse_args()
 
     if not args.model_path and not args.xml:
         logging.error("Invalid model path passed.")
         sys.exit("Please either pass a frozen pb or an Openvino Intermediate Representation xml model")
 
+    xml_path = args.xml
     if args.model_path:
-        xml_path = optimize_network(args.model_path, source_fw="tf", network="tmp_net", input_shape=None, input_node="annette_bench1",
-                         save_folder=args.save_folder)
+        # overwrite xml_path during network optimization
+        xml_path = optimize_network(args.model_path, source_fw="tf", network="tmp_net", input_shape=[1,416,416,3],
+                                    input_node="annette_bench1", save_folder=args.save_folder)
+
     if  os.path.isfile(xml_path):
-        run_network(xml_path=xml_path, report_dir="./tmp", hardware=args.device, batch=1, nireq=1, niter=10, api="async")
+        run_network_new(xml_path=xml_path, report_dir="./tmp", device=args.device, niter=10)
 
     logging.info("\n**********OPENVINO DONE**********")
 
