@@ -80,7 +80,7 @@ def optimize_network(model_path="./models/model.pb", source_fw = "tf", network =
     return xml_path
 
 
-def run_network_new(xml_path = "./tmp/model.xml", report_dir = "./tmp", device = "CPU", niter = 10, print_bool = False):
+def run_network_new(xml_path = "./tmp/model.xml", report_dir = "./tmp", device = "CPU", niter = 10, print_bool = False, sleep_time=0):
     # initialize power measurement
     pm = measurement.power_measurement(sampling_rate=500000, data_dir="./tmp", max_duration=60, port=0)
     model_name_kwargs = {"model_name": "test", "custom_param": "infmod"}
@@ -102,22 +102,25 @@ def run_network_new(xml_path = "./tmp/model.xml", report_dir = "./tmp", device =
     # start inference over niter
     infer_requests = exe_network.requests
     times = []
-    times2 = []
+
+    if sleep_time > 10:
+        print("Time between iterations was set to {0:.2f}s. Please choose a float < 10".format(sleep_time))
+        return
+    elif sleep_time < 0:
+        print("Invalid sleep time {0:.2f}s".format(sleep_time))
+        return
 
     start_time = datetime.utcnow()
     pm.start_gather(model_name_kwargs)  # start power measurement
 
     try:
         for iteration in range(niter): # iterate over inferences
-            start_inf_t = time()
             infer_requests[0].infer()
-            end_inf_t = time() - start_inf_t
             if print_bool:
-                print("iteration (1): {} took {:.3f} ms".format(iteration, end_inf_t*1000))
-                print("iteration (2): {} took {:.3f} ms".format(iteration, infer_requests[0].latency))
-            times.append(end_inf_t)
-            times2.append(infer_requests[0].latency)
-            sleep(0.1)
+                print("iteration {} took {:.3f} ms".format(iteration, infer_requests[0].latency))
+            times.append(infer_requests[0].latency)
+            sleep(sleep_time)
+
     except KeyboardInterrupt:
         print("\nInference loop exited via KeyboardInterrupt (ctrl + c)")
 
@@ -131,10 +134,8 @@ def run_network_new(xml_path = "./tmp/model.xml", report_dir = "./tmp", device =
 
     total_duration_sec = (datetime.utcnow() - start_time).total_seconds()
     times.sort()
-    times2.sort()
     if print_bool:
-        print("Execution time median: {:.3f} ms".format(median(times)*1000))
-        print("Execution time2 median: {:.3f} ms".format(median(times2)))
+        print("Execution time median: {:.3f} ms".format(median(times)))
 
 
 def run_network(xml_path = "./tmp/model.xml", report_dir = "./tmp", hardware = "CPU", batch = 1, nireq = 1, niter = 10, api = "async"):
@@ -176,6 +177,7 @@ def main():
     parser.add_argument("-sf", '--save_folder', default='./tmp', help='folder to save the resulting files', required=False)
     parser.add_argument("-d", '--device', default='CPU',  help='device to run inference on', required=False)
     parser.add_argument("-n", '--niter', default=10, type=int, help='number of iterations', required=False)
+    parser.add_argument("-s", '--sleep', type=float, help='time to sleep between inferences in seconds', required=False)
     parser.add_argument('--nireq', default=1,  help='number of inference requests, used in async mode', required=False)
     parser.add_argument("-rd", '--report_dir', default='reports', help='Directory to save reports into', required=False)
     parser.add_argument('--print', dest='print', action='store_true')
@@ -194,7 +196,8 @@ def main():
                                     input_node="annette_bench1", save_folder=args.save_folder)
 
     if  os.path.isfile(xml_path):
-        run_network_new(xml_path=xml_path, report_dir="./tmp", device=args.device, niter=args.niter, print_bool=args.print)
+        run_network_new(xml_path=xml_path, report_dir="./tmp", device=args.device, niter=args.niter,
+                        print_bool=args.print, sleep_time=args.sleep)
 
     logging.info("\n**********OPENVINO DONE**********")
 
