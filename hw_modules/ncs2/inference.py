@@ -7,6 +7,7 @@
 import logging
 import os, sys
 from openvino.inference_engine import IENetwork, IECore, get_version, StatusCode
+from openvino.tools.benchmark.utils.statistics_report import StatisticsReport, averageCntReport, detailedCntReport
 from time import sleep, time
 from datetime import datetime
 from statistics import median
@@ -86,6 +87,8 @@ def run_network_new(xml_path = "./tmp/model.xml", report_dir = "./tmp", device =
     model_name_kwargs = {"model_name": "test", "custom_param": "infmod"}
     ie = IECore()
 
+    statistics = StatisticsReport(StatisticsReport.Config("average_counters", report_dir))
+
     bin_path = xml_path.split(".xml")[0] + ".bin"
     ie_network = ie.read_network(xml_path, bin_path)
 
@@ -120,7 +123,6 @@ def run_network_new(xml_path = "./tmp/model.xml", report_dir = "./tmp", device =
                 print("iteration {} took {:.3f} ms".format(iteration, infer_requests[0].latency))
             times.append(infer_requests[0].latency)
             sleep(sleep_time)
-
     except KeyboardInterrupt:
         print("\nInference loop exited via KeyboardInterrupt (ctrl + c)")
 
@@ -136,6 +138,17 @@ def run_network_new(xml_path = "./tmp/model.xml", report_dir = "./tmp", device =
     times.sort()
     if print_bool:
         print("Execution time median: {:.3f} ms".format(median(times)))
+
+    perf_counts = True
+
+    # save performance counters from inference request into list and dump using statistics from Openvino
+    # needs rewriting for asynchronous inference requests
+    if perf_counts:
+        perfs_count_list = []
+        perfs_count_list.append(exe_network.requests[0].get_perf_counts())
+
+        if statistics:
+            statistics.dump_performance_counters(perfs_count_list)
 
 
 def run_network(xml_path = "./tmp/model.xml", report_dir = "./tmp", hardware = "CPU", batch = 1, nireq = 1, niter = 10, api = "async"):
