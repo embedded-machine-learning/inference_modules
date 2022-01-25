@@ -45,7 +45,7 @@ def optimize_network(model_path="./models/model.pb", source_fw = "tf", network =
         " --input_model " + str(model_path) +
         " --output_dir " + str(save_folder) +
         " --data_type FP16 " + shape)
-        xml_path = os.path.join(save_folder, model_path.split(".pb")[0].split("/")[-1]+".xml")
+        xml_path = os.path.join(save_folder, str(model_path).split(".pb")[0].split("/")[-1]+".xml")
         logging.debug(xml_path)
     elif source_fw in ["cf", "dk"]:
         # Caffe or Darknet conversion
@@ -89,10 +89,10 @@ def run_network_new(xml_path = "./tmp/model.xml", report_dir = "./tmp", device =
 
     statistics = StatisticsReport(StatisticsReport.Config("average_counters", report_dir))
 
-    bin_path = xml_path.split(".xml")[0] + ".bin"
-    ie_network = ie.read_network(xml_path, bin_path)
+    bin_path = str(xml_path).split(".xml")[0] + ".bin"
+    ie_network = ie.read_network(str(xml_path), bin_path)
 
-    exe_network = ie.load_network(xml_path, device, config={}, num_requests=1)
+    exe_network = ie.load_network(str(xml_path), device, config={}, num_requests=1)
 
     # create report directory if it doesn't exist yet
     if not os.path.isdir(report_dir):
@@ -151,7 +151,7 @@ def run_network_new(xml_path = "./tmp/model.xml", report_dir = "./tmp", device =
             statistics.dump_performance_counters(perfs_count_list)
 
 
-def run_network(xml_path = "./tmp/model.xml", report_dir = "./tmp", hardware = "CPU", batch = 1, nireq = 1, niter = 10, api = "async"):
+def run_network(xml_path = "./tmp/model.xml", report_dir = "./tmp", hardware = "MYRIAD", batch = 1, nireq = 1, niter = 10, api = "async"):
 
     if not os.path.isdir(report_dir):
         os.mkdir(report_dir)
@@ -165,7 +165,7 @@ def run_network(xml_path = "./tmp/model.xml", report_dir = "./tmp", hardware = "
     logging.info("\n**********OPENVINO STARTING INFERENCE**********")
 
     c_bench = ("python3 " + bench_app_file +
-    " -m "  + xml_path +
+    " -m "  + str(xml_path) +
     " -d " + hardware +
     " -b " + str(batch) +
     " -api " + api +

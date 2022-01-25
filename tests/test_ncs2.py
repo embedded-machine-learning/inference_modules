@@ -7,7 +7,7 @@ import os
 
 import hw_modules.ncs2 as ncs2
 
-#print(ncs2.__dict__)
+print(ncs2.__dict__)
 
 __author__ = "Matthias Wess"
 __copyright__ = "Christian Doppler Laboratory for Embedded Machine Learning"
@@ -15,36 +15,37 @@ __license__ = "Apache 2.0"
 
 def test_optimize_network(network="annette_bench1.pb"):
     test_net = Path('tests','networks',network)
-    ncs2.optimize_network(test_net, source_fw = "tf", network = "tmp_net", image = [1, 1, 1, 3] , input_node = "data", save_folder = "tests/tmp")
+    ncs2.inference.optimize_network(test_net, source_fw = "tf", network = "tmp_net", input_shape = [1, 416, 416, 3] , input_node = "data", save_folder = "tests/tmp")
 
     assert True
 
 def test_run_network(network="annette_bench1.xml"):
     test_net = Path('tests','tmp',network)
-    ncs2.run_network(test_net, report_dir = "./tests/data/ncs2_ov2019")
+    #ncs2.inference.run_network_new(test_net, report_dir = "./tests/data/ncs2_ov2019")
+    ncs2.inference.run_network_new(xml_path=test_net, report_dir="./tmp", device="CPU", print_bool=True)
 
     assert True
 
 def test_read_ncs2_report(network="benchmark_average_counters_report"):
     report_file = Path('tests','data','ncs2_ov2019',network+'.csv')
-    ncs2.read_report(report_file)
+    ncs2.parser.read_report(report_file)
 
     assert True
 
 def test_ncs2_r2a(network="benchmark_average_counters_report"):
     report_file = Path('tests','data','ncs2_ov2019',network+'.csv')
-    ncs2.r2a(report_file)
+    ncs2.parser.r2a(report_file)
 
     assert True
 
 def test_all(network="annette_bench.pb"):
     report_file = Path('tests','data','ncs2_ov2019',network+'.csv')
     test_net = Path('tests','networks','annette_bench1.pb')
-    ncs2.optimize_network(test_net, source_fw = "tf", network = "tmp_net", image = [1, 1, 1, 3] , input_node = "data", save_folder = "tests/tmp")
+    ncs2.inference.optimize_network(test_net, source_fw = "tf", network = "tmp_net", input_shape = [1, 1, 1, 3] , input_node = "data", save_folder = "tests/tmp")
     test_net = Path('tests','tmp','annette_bench1.xml')
-    ncs2.run_network(test_net)
+    ncs2.inference.run_network(test_net)
     test_report = Path('tmp','benchmark_average_counters_report.csv')
-    ncs2.r2a(test_report)
+    ncs2.parser.r2a(test_report)
 
     assert True
 
