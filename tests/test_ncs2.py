@@ -4,6 +4,7 @@ sys.path.append("./")
 from pathlib import Path
 import logging
 import os
+import multiprocessing
 
 import hw_modules.ncs2 as ncs2
 
@@ -22,7 +23,28 @@ def test_optimize_network(network="annette_bench1.pb"):
 def test_run_network(network="annette_bench1.xml"):
     test_net = Path('tests','tmp',network)
     #ncs2.inference.run_network_new(test_net, report_dir = "./tests/data/ncs2_ov2019")
-    ncs2.inference.run_network_new(xml_path=test_net, report_dir="./tmp", device="CPU", print_bool=True)
+    #test_net = "/home/intel-nuc/imatvey/yolov5/models/yolov5s_simpl_2021.4.xml"
+    test_net = "tests/tmp/annette_bench1.xml"
+    kw = {"xml_path": test_net, "report_dir":"./tmp", "device":"MYRIAD"}
+    p = multiprocessing.Process(target=ncs2.inference.run_network_new,kwargs=kw)
+    p.start()
+    #(xml_path=test_net, report_dir="./tmp", device="MYRIAD", print_bool=True)
+
+    # Wait for 10 seconds or until process finishes
+    p.join(3)
+
+    # If thread is still active
+    if p.is_alive():
+        print("running... let's kill it...")
+
+        # Terminate - may not work if process is stuck for good
+        p.terminate()
+        # OR Kill - will work for sure, no chance for process to finish nicely however
+        #p.kill()
+
+        p.join()
+
+    print("over")
 
     assert True
 
