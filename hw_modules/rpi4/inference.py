@@ -5,8 +5,14 @@
 
 import logging
 import os, sys
+
 from time import sleep, time
 from datetime import datetime
+from statistics import median
+
+import numpy as np
+import pyarmnn as ann
+import tflite_runtime.interpreter as tflite
 
 
 __author__ = "Matvey Ivanov"
@@ -14,36 +20,22 @@ __copyright__ = "Christian Doppler Laboratory for Embedded Machine Learning"
 __license__ = "Apache 2.0"
 
 
-def optimize_network(model_path="./models/model.pb", network = "tmp_net", input_shape = [1, 224, 224, 3] , input_node = "data", save_folder = "./tmp"):
-    logging.info("\n**********TFLITE CONVERSION**********")
-    # check if model path valid
-    if os.path.isfile(model_path):
-        # Tensorflow LITE conversion
-        # TODO implement model conversion
-        tflite_path = os.path.join(save_folder, "model")
-        logging.debug(tflite_path)
-    else:
-        logging.info("Invalid Model Path: {} given!".format(model_path))
-
-    logging.info("\n**********TFLITE MODEL GENERATED AT {}**********".format(tflite_path))
-    # return path to generated TFLite model
-    return tflite_path
+def optimize_network(model_path="./models/model.tflite", network = "tmp_net", input_shape = [1, 224, 224, 3] , input_node = "data", save_folder = "./tmp"):
+    # TFLite does not support model conversion and the full Tensorflow cannot be installed on the RPi4
+    return model_path
 
 
-def run_network(tflite_path = "./tmp/model.tflite", report_dir = "./tmp", niter = 10,
-                print_bool = False, sleep_time=0, power_meas=False):
-    # initialize power measurement
-    if power_meas:
-        pm = measurement.power_measurement(sampling_rate=500000, data_dir="./tmp", max_duration=60, port=0)
-        model_name_kwargs = {"model_name": "test", "custom_param": "infmod"}
+def run_network(tflite_path = "./tmp/model.tflite", save_dir = "./tmp", niter = 10, print_bool = False, sleep_time=0,
+                use_tflite=False, use_pyarmnn=False):
+    # this function only makes sense if one framework is used
+    if use_tflite:
+        use_pyarmnn = False
 
     # create report directory if it doesn't exist yet
-    if not os.path.isdir(report_dir):
-        os.mkdir(report_dir)
+    if not os.path.isdir(save_dir):
+        os.mkdir(save_dir)
 
-    # start inference over niter
-
-    times = [] # list for latency
+    times = [] # list for latencies
     # simple sanity check for sleep time
     if sleep_time and sleep_time > 10:
         print("Time between iterations was set to {0:.2f}s. Please choose a float < 10".format(sleep_time))
@@ -52,43 +44,102 @@ def run_network(tflite_path = "./tmp/model.tflite", report_dir = "./tmp", niter 
         print("Invalid sleep time {0:.2f}s".format(sleep_time))
         return
 
-    start_time = datetime.utcnow()
-    if power_meas:
-        pm.start_gather(model_name_kwargs)  # start power measurement
+    if use_tflite:
+        interpreter = tflite.Interpreter(model_path=tflite_path)
+        interpreter.allocate_tensors()
 
+        # Get input and output tensors.
+        input_details = interpreter.get_input_details()
+        output_details = interpreter.get_output_details()
+
+        # print information about model inputs and outputs
+        print("\n*****Model Inputs*****:")
+        for input in input_details:
+            for v, k in input.items():
+                print(v, k) if print_bool else None
+            print() if print_bool else None
+        print() if print_bool else None
+
+        print("\n*****Model Outputs*****")
+        for output in output_details:
+            for v, k in output.items():
+                print(v, k) if print_bool else None
+            print() if print_bool else None
+        print() if print_bool else None
+
+        # generate random input
+        if input['dtype'] == np.uint8:
+            input_data = np.random.randint(low=np.iinfo(input['dtype']).min, high=np.iinfo(input['dtype']).max,
+                                       size=input_details[0]['shape'], dtype=input_details[0]["dtype"])
+        elif input['dtype'] == np.float32:
+            input_data = np.random.default_rng().standard_normal(size=input_details[0]['shape'],
+                                                             dtype=input_details[0]["dtype"])
+        interpreter.set_tensor(input_details[0]['index'], input_data)
+        interpreter.invoke() # conduct warm up inference
+    elif use_pyarmnn:
+        parser = ann.ITfLiteParser()
+        network = parser.CreateNetworkFromBinaryFile(tflite_path)
+
+        options = ann.CreationOptions()
+        runtime = ann.IRuntime(options)
+
+        preferredBackends = [ann.BackendId('CpuAcc'), ann.BackendId('CpuRef')]
+        opt_network, messages = ann.Optimize(network, preferredBackends, runtime.GetDeviceSpec(),
+                                             ann.OptimizerOptions())
+
+        graph_id = 0
+        input_names = parser.GetSubgraphInputTensorNames(graph_id)
+        input_binding_info = parser.GetNetworkInputBindingInfo(graph_id, input_names[0])
+        input_tensor_id = input_binding_info[0]
+        input_tensor_info = input_binding_info[1]
+        width, height = input_tensor_info.GetShape()[1], input_tensor_info.GetShape()[2]
+        # print(f"tensor id: {input_tensor_id},tensor info: {input_tensor_info}")
+
+        input_data = np.random.randint(0, 255, size=(height, width, 3))
+
+        # Get output binding information for an output layer by using the layer name.
+        output_names = parser.GetSubgraphOutputTensorNames(graph_id)
+        output_binding_info = parser.GetNetworkOutputBindingInfo(0, output_names[0])
+        output_tensors = ann.make_output_tensors([output_binding_info])
+
+        net_id, _ = runtime.LoadNetwork(opt_network)
+        if ann.TensorInfo.IsQuantized(input_tensor_info):
+            input_data = np.uint8(input_data)
+        else:
+            input_data = np.float32(input_data/255)
+        input_tensors = ann.make_input_tensors([input_binding_info], [input_data])
+
+        runtime.EnqueueWorkload(0, input_tensors, output_tensors) # conduct warm up inference
+
+    start_time = datetime.utcnow()
     try:
         for iteration in range(niter): # iterate over inferences
-            # TODO implement inference
-            sleep(0.01)
-            print(iteration, "inference conducted")
-            if print_bool:
-                print("iteration {} took {:.3f} ms".format(iteration, iteration))
-            times.append(iteration)
+            inf_start_time = time()
+
+            interpreter.invoke() if use_tflite else None # TFLite inference
+            runtime.EnqueueWorkload(0, input_tensors, output_tensors) if use_pyarmnn else None # PyARMNN inference
+
+            t_inf_ms = (time() - inf_start_time)*1000
+            print("iteration {} took {:.3f} ms".format(iteration, t_inf_ms)) if print_bool else None
+            times.append(t_inf_ms)
             sleep(sleep_time)
     except KeyboardInterrupt:
         print("\nInference loop exited via KeyboardInterrupt (ctrl + c)")
 
-    if power_meas:
-        pm.end_gather(True) # end powermeasurement
-        print("Power Measurement ended")
-
     total_duration_sec = (datetime.utcnow() - start_time).total_seconds()
     times.sort()
-    if print_bool:
-        print("Execution time median: {:.3f} ms".format(median(times)))
+    print("\nExecution time median: {:.3f} ms".format(median(times))) if print_bool else None
 
     # TODO save profiler data if available
 
 
 def main():
     import argparse
-    parser = argparse.ArgumentParser(description='Raspberry Pi 4 power benchmark')
-    parser.add_argument("-tf", '--tf_model', help='Tensorflow model file', required=False)
+    parser = argparse.ArgumentParser(description='Raspberry Pi 4 Inference Module')
     parser.add_argument("-tfl", '--tflite_model', help='TFLite model file', required=False)
-    parser.add_argument("-sf", '--save_folder', default='./tmp', help='folder to save the resulting files', required=False)
+    parser.add_argument("-sd", '--save_dir', default='./tmp', help='folder to save the resulting files', required=False)
     parser.add_argument("-n", '--niter', default=10, type=int, help='number of iterations', required=False)
     parser.add_argument("-s", '--sleep', default=0, type=float, help='time to sleep between inferences in seconds', required=False)
-    parser.add_argument("-rd", '--report_dir', default='reports', help='Directory to save reports into', required=False)
 
     parser.add_argument('--print', dest='print', action='store_true')
     parser.add_argument('--no-print', dest='print', action='store_false')
@@ -96,40 +147,31 @@ def main():
 
     parser.add_argument('--interpreter', dest='interpreter', action='store_true')
     parser.add_argument('--no-interpreter', dest='interpreter', action='store_false')
-    parser.set_defaults(feature=True)
+    parser.set_defaults(feature=False)
 
     parser.add_argument('--pyarmnn', dest='pyarmnn', action='store_true')
     parser.add_argument('--no-pyarmnn', dest='pyarmnn', action='store_false')
-    parser.set_defaults(feature=True)
-
-    parser.add_argument('--power_meas', dest='power_meas', action='store_true')
-    parser.add_argument('--no-power_meas', dest='power_meas', action='store_false')
-    parser.set_defaults(feature=True)
+    parser.set_defaults(feature=False)
 
     args = parser.parse_args()
+
+    if not args.pyarmnn and not args.interpreter:
+        logging.error("No Runtime chosen, please choose either PyARMNN or TFLite Interpreter")
+        return
+
     tflite_path = args.tflite_model
 
-    # if no neural network models are provided, exit script
-    if not args.tf_model and not args.tflite_model:
-        logging.error("Invalid model path passed.")
-        sys.exit("Please provide with either a Tensorflow or TFLite model file")
+    # if no neural network models are provided, return
+    if not args.tflite_model:
+        logging.error("Invalid model path {} passed.".format(args.tflite_model))
+        return
 
-    # invoke model conversion if only Tensorflow model file is provided
-    if args.tf_model and not args.tflite_model:
-        # overwrite tflite_path during network optimization
-        tflite_path = optimize_network(args.tf_model, network="tmp_net", input_shape=[1,416,416,3],
-                                    input_node="annette_bench1", save_folder=args.save_folder)
-
-    # only do power measurements if flag is set
-    if args.power_meas:
-        from powerutils import measurement
-
-    # if TFLite model is provided, use it for inference and ignore tf_model
+    # if TFLite model is provided, use it for inference
     if args.tflite_model and os.path.isfile(args.tflite_model):
-        run_network(tflite_path=tflite_path, report_dir="./tmp", niter=args.niter,
-                        print_bool=args.print, sleep_time=args.sleep, power_meas=args.power_meas)
+        run_network(tflite_path=tflite_path, save_dir=args.save_dir, niter=args.niter,
+                        print_bool=args.print, sleep_time=args.sleep, use_tflite=args.interpreter, use_pyarmnn=args.pyarmnn)
 
-    logging.info("\n**********OPENVINO DONE**********")
+    logging.info("\n**********RPI INFERENCE DONE**********")
 
 if __name__ == "__main__":
     main()
