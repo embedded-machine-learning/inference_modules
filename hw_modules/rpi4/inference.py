@@ -20,7 +20,7 @@ __copyright__ = "Christian Doppler Laboratory for Embedded Machine Learning"
 __license__ = "Apache 2.0"
 
 
-def optimize_network(model_path="./models/model.tflite", network = "tmp_net", input_shape = [1, 224, 224, 3] , input_node = "data", save_folder = "./tmp"):
+def optimize_network(model_path="./models/model.tflite", network = "tmp_net", input_shape = [1, 224, 224, 3], input_node = "data", save_folder = "./tmp"):
     # TFLite does not support model conversion and the full Tensorflow cannot be installed on the RPi4
     return model_path
 
@@ -129,8 +129,6 @@ def run_network(tflite_path = "./tmp/model.tflite", save_dir = "./tmp", niter = 
     total_duration_sec = (datetime.utcnow() - start_time).total_seconds()
     times.sort()
     print("\nExecution time median: {:.3f} ms".format(median(times))) if print_bool else None
-
-    # TODO save profiler data if available
 
 
 def main():
