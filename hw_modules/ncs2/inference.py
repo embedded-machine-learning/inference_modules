@@ -13,6 +13,14 @@ from datetime import datetime
 from statistics import median
 from powerutils import measurement
 
+try:
+    import board
+    import digitalio
+    print("USB to GPIO adapter pip packages installed")
+except:
+    print("Pip packages for USB to GPIO adapter not found!")
+    print("Without these, the power measurements will not work as intended (only noise will be measured).")
+
 
 __author__ = "Matvey Ivanov"
 __copyright__ = "Christian Doppler Laboratory for Embedded Machine Learning"
@@ -81,11 +89,15 @@ def optimize_network(model_path="./models/model.pb", source_fw = "tf", network =
     return xml_path
 
 
-def run_network_new(xml_path = "./tmp/model.xml", report_dir = "./tmp", device = "CPU", niter = 10, print_bool = False, sleep_time=0):
+def run_network_new(xml_path = "./tmp/model.xml", report_dir = "./tmp", device = "MYRIAD", niter = 10, print_bool = False, sleep_time=0):
     # initialize power measurement
     pm = measurement.power_measurement(sampling_rate=500000, data_dir="./tmp", max_duration=60, port=0)
     model_name_kwargs = {"model_name": "test", "custom_param": "infmod"}
     ie = IECore()
+
+    led = digitalio.DigitalInOut(board.C0)
+    led.direction = digitalio.Direction.OUTPUT
+    led.value = True
 
     statistics = StatisticsReport(StatisticsReport.Config("average_counters", report_dir))
 
@@ -97,6 +109,7 @@ def run_network_new(xml_path = "./tmp/model.xml", report_dir = "./tmp", device =
     # create report directory if it doesn't exist yet
     if not os.path.isdir(report_dir):
         os.mkdir(report_dir)
+    start_time = datetime.utcnow()
 
     infer_request = exe_network.requests[0]
     # warming up - out of scope
@@ -113,12 +126,12 @@ def run_network_new(xml_path = "./tmp/model.xml", report_dir = "./tmp", device =
         print("Invalid sleep time {0:.2f}s".format(sleep_time))
         return
 
-    start_time = datetime.utcnow()
     pm.start_gather(model_name_kwargs)  # start power measurement
-
     try:
         for iteration in range(niter): # iterate over inferences
+            led.value = False
             infer_requests[0].infer()
+            led.value = True
             if print_bool:
                 print("iteration {} took {:.3f} ms".format(iteration, infer_requests[0].latency))
             times.append(infer_requests[0].latency)
@@ -131,6 +144,7 @@ def run_network_new(xml_path = "./tmp/model.xml", report_dir = "./tmp", device =
     if status != StatusCode.OK:
         raise Exception(f"Wait for all requests is failed with status code {status}!")
 
+    sleep(0.02)
     pm.end_gather(True) # end powermeasurement
     print("Power Measurement ended")
 

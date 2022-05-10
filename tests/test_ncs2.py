@@ -24,7 +24,7 @@ def test_run_network(network="annette_bench1.xml"):
     test_net = Path('tests','tmp',network)
     #ncs2.inference.run_network_new(test_net, report_dir = "./tests/data/ncs2_ov2019")
     #test_net = "/home/intel-nuc/imatvey/yolov5/models/yolov5s_simpl_2021.4.xml"
-    test_net = "tests/tmp/annette_bench1.xml"
+    #test_net = "tests/ov_networks/annette_bench1.xml"
     kw = {"xml_path": test_net, "report_dir":"./tmp", "device":"MYRIAD"}
     p = multiprocessing.Process(target=ncs2.inference.run_network_new,kwargs=kw)
     p.start()
@@ -70,7 +70,6 @@ def test_all(network="annette_bench.pb"):
     ncs2.parser.r2a(test_report)
 
     assert True
-
 
 def main():
 
