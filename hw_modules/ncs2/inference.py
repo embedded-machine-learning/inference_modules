@@ -6,6 +6,7 @@
 
 import logging
 import os, sys
+import numpy as np
 from openvino.inference_engine import IENetwork, IECore, get_version, StatusCode
 from openvino.tools.benchmark.utils.statistics_report import StatisticsReport, averageCntReport, detailedCntReport
 from time import sleep, time
@@ -27,7 +28,8 @@ __copyright__ = "Christian Doppler Laboratory for Embedded Machine Learning"
 __license__ = "Apache 2.0"
 
 
-def optimize_network(model_path="./models/model.pb", source_fw = "tf", network = "tmp_net", input_shape = [1, 224, 224, 3] , input_node = "data", save_folder = "./tmp"):
+def optimize_network(model_path="./models/model.pb", source_fw = "tf", network = "tmp_net", input_shape = [1, 224, 224, 3],
+                     input_node = "data", save_folder = "./tmp"):
     mo_file = os.path.join("/", "opt", "intel", "openvino_2021", "deployment_tools", "model_optimizer", "mo.py")
 
     # check if necessary files exists
@@ -55,44 +57,33 @@ def optimize_network(model_path="./models/model.pb", source_fw = "tf", network =
         " --data_type FP16 " + shape)
         xml_path = os.path.join(save_folder, str(model_path).split(".pb")[0].split("/")[-1]+".xml")
         logging.debug(xml_path)
+    elif source_fw == "onnx":
+        logging.info("\n**********ONNX CONVERSION**********")
+
+        c_conv = ("python3 " + str(mo_file) +
+        " --input_model " + str(model_path) +
+        " --output_dir " + str(save_folder) +
+        " --data_type FP16")
+        xml_path = os.path.join(save_folder, str(model_path).split(".onnx")[0].split("/")[-1] + ".xml")
+        logging.debug(xml_path)
     elif source_fw in ["cf", "dk"]:
         # Caffe or Darknet conversion
         logging.info("\n**********CAFFE AND DARKNET CONVERSION NOT SUPPORTED YET**********")
-        """
-        # input_shape : batch, channels, width, height
-        input_proto =  model_path.split("/deploy.caffemodel")[0] + "/deploy.prototxt"
-        shape = "["+str(input_shape[0])+","+str(input_shape[3])+","+str(input_shape[1])+","+str(input_shape[2])+"]"
-
-        if "SPnet" in model_path:
-            input_node = "demo"
-        else:
-            input_node = "data"
-
-        c_conv = ("python3 " + mo_file +
-        " --input_model " + model_path +
-        #" --input_proto " + input_proto +
-        " --output_dir " + save_folder +
-        " --data_type FP16 " +
-        " --input_shape " + shape +
-        " --input " + input_node) # input node sometimes called demo)
-        xml_path = os.path.join(save_folder, model_path.split(".caffemodel")[0].split("/")[-1] + ".xml")
-        logging.debug(xml_path)"""
     else:
         logging.info("Model conversion for non standard frameworks is not supported yet!")
 
     if os.system(c_conv):
         logging.info("\nAn error has occured during conversion!\n")
-        return False
 
-    logging.info("Openvino Intermediate Representation model generated at:", xml_path)
+    logging.info("Openvino Intermediate Representation model generated at: {}".format(xml_path))
     logging.info("\n**********OPENVINO INTERMEDIATE REPRESENTATION MODEL GENERATED AT {}**********".format(xml_path))
     return xml_path
 
 
 def run_network_new(xml_path = "./tmp/model.xml", report_dir = "./tmp", device = "MYRIAD", niter = 10, print_bool = False, sleep_time=0):
     # initialize power measurement
-    pm = measurement.power_measurement(sampling_rate=500000, data_dir="./tmp", max_duration=60, port=0)
-    model_name_kwargs = {"model_name": "test", "custom_param": "infmod"}
+    pm = measurement.power_measurement(sampling_rate=500000, data_dir=report_dir, max_duration=60, port=0) # port 0 for NCS2
+    model_name_kwargs = {"model_name": xml_path.split(".xml")[0].split("/")[-1]}
     ie = IECore()
 
     led = digitalio.DigitalInOut(board.C0)
@@ -103,6 +94,10 @@ def run_network_new(xml_path = "./tmp/model.xml", report_dir = "./tmp", device =
 
     bin_path = str(xml_path).split(".xml")[0] + ".bin"
     ie_network = ie.read_network(str(xml_path), bin_path)
+
+    input_blob = next(iter(ie_network.input_info))
+    out_blob = next(iter(ie_network.outputs))
+    n, c, h, w = ie_network.input_info[input_blob].input_data.shape
 
     exe_network = ie.load_network(str(xml_path), device, config={}, num_requests=1)
 
@@ -125,12 +120,12 @@ def run_network_new(xml_path = "./tmp/model.xml", report_dir = "./tmp", device =
     elif sleep_time < 0:
         print("Invalid sleep time {0:.2f}s".format(sleep_time))
         return
-
+    net_input = np.random.randint(0, 255, size=[n, c, h, w])
     pm.start_gather(model_name_kwargs)  # start power measurement
     try:
         for iteration in range(niter): # iterate over inferences
             led.value = False
-            infer_requests[0].infer()
+            infer_requests[0].infer(inputs={input_blob: net_input})
             led.value = True
             if print_bool:
                 print("iteration {} took {:.3f} ms".format(iteration, infer_requests[0].latency))
@@ -160,7 +155,6 @@ def run_network_new(xml_path = "./tmp/model.xml", report_dir = "./tmp", device =
     if perf_counts:
         perfs_count_list = []
         perfs_count_list.append(exe_network.requests[0].get_perf_counts())
-
         if statistics:
             statistics.dump_performance_counters(perfs_count_list)
 
