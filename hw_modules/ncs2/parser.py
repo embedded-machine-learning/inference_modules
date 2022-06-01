@@ -110,7 +110,7 @@ def read_report(report="", outfolder="./tmp/", format=None):
     elif format == "json":
         data_js = data.to_json(os.path.join(outfolder, outfile + ".json"), orient='index')
     else:
-        logging.debug("Format:", format, " not implemented!")
+        logging.debug("Format: {} not implemented!".format(format))
     
     return data
 

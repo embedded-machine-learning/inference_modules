@@ -22,10 +22,11 @@ __license__ = "Apache 2.0"
 def optimize_network(model_path="./models/model.pb", source_fw = "tf", network = "tmp_net", input_shape = [1, 224, 224, 3] , input_node = "data", save_folder = "./tmp"):
     mo_file = os.path.join("/", "opt", "intel", "openvino_2021", "deployment_tools", "model_optimizer", "mo.py")
 
+    # mo_file = "mo"
     # check if necessary files exists
-    if not os.path.isfile(mo_file):
-        logging.info("Model Optimizer not found at:", mo_file)
-        return False
+    # if not os.path.isfile(mo_file):
+    #    logging.info("Model Optimizer not found at:", mo_file)
+    #    return False
 
     # if no .pb is given look if an .xml already exists and take it
     # if no .pb or .xml is given exit!
@@ -41,7 +42,7 @@ def optimize_network(model_path="./models/model.pb", source_fw = "tf", network =
         else:
             shape = ""
 
-        c_conv = ("python3 " + str(mo_file) +
+        c_conv = (str(mo_file) +
         " --input_model " + str(model_path) +
         " --output_dir " + str(save_folder) +
         " --data_type FP16 " + shape)
@@ -60,7 +61,7 @@ def optimize_network(model_path="./models/model.pb", source_fw = "tf", network =
         else:
             input_node = "data"
 
-        c_conv = ("python3 " + mo_file +
+        c_conv = ("python3 " + "mo" +
         " --input_model " + model_path +
         #" --input_proto " + input_proto +
         " --output_dir " + save_folder +
@@ -76,12 +77,12 @@ def optimize_network(model_path="./models/model.pb", source_fw = "tf", network =
         logging.info("\nAn error has occured during conversion!\n")
         return False
 
-    logging.info("Openvino Intermediate Representation model generated at:", xml_path)
+    logging.info("Openvino Intermediate Representation model generated at: {}".format(xml_path))
     logging.info("\n**********OPENVINO INTERMEDIATE REPRESENTATION MODEL GENERATED AT {}**********".format(xml_path))
     return xml_path
 
 
-def run_network_new(xml_path = "./tmp/model.xml", report_dir = "./tmp", device = "CPU", niter = 10, print_bool = False, sleep_time=0):
+def run_network_new(xml_path = "./tmp/model.xml", report_dir = "./tmp", device = "CPU", niter = 10, print_bool = False, sleep_time=0.1):
     # initialize power measurement
     pm = measurement.power_measurement(sampling_rate=500000, data_dir="./tmp", max_duration=60, port=0)
     model_name_kwargs = {"model_name": "test", "custom_param": "infmod"}
@@ -112,15 +113,21 @@ def run_network_new(xml_path = "./tmp/model.xml", report_dir = "./tmp", device =
     elif sleep_time < 0:
         print("Invalid sleep time {0:.2f}s".format(sleep_time))
         return
+    else:
+        print("sleep_time {0:.2f}s".format(sleep_time))
 
     start_time = datetime.utcnow()
     pm.start_gather(model_name_kwargs)  # start power measurement
+    #print("start measuring")
+    sleep(sleep_time)
+
 
     try:
         for iteration in range(niter): # iterate over inferences
             infer_requests[0].infer()
             if print_bool:
                 print("iteration {} took {:.3f} ms".format(iteration, infer_requests[0].latency))
+            print("iteration {} took {:.3f} ms".format(iteration, infer_requests[0].latency))
             times.append(infer_requests[0].latency)
             sleep(sleep_time)
     except KeyboardInterrupt:
