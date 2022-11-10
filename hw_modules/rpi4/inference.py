@@ -167,7 +167,7 @@ sleep_time=0, use_tflite=False, use_pyarmnn=False, bench_file="./linux_aarch64_b
     profile_csv_file_path = os.path.join(save_dir, tflite_path.split("/")[-1].split(".tflite")[0] + "_" + str(num_threads) + "thr" + ".csv")
 
     # invoke inference with linux_aarch64_benchmark_model
-    invoke_command = " ".join(["./linux_aarch64_benchmark_model",
+    invoke_command = " ".join([bench_file,
     "--graph=" + tflite_path,
     "--num_threads=" + str(num_threads),
     "--num_runs=" + str(niter),
@@ -221,7 +221,7 @@ def main():
     # run inference using the provided benchmark file if the benchmark file is valid
     if args.bench_file and os.path.isfile(args.bench_file):
         run_compiled_bench(tflite_path=args.tflite_model, save_dir=args.save_dir, niter=args.niter, print_bool=args.print, 
-        sleep_time=args.sleep, use_tflite=args.interpreter, use_pyarmnn=args.pyarmnn, bench_file="./linux_aarch64_benchmark_model", num_threads = 1)
+        sleep_time=args.sleep, use_tflite=args.interpreter, use_pyarmnn=args.pyarmnn, bench_file=args.bench_file, num_threads = 1)
 
     logging.info("\n**********RPI INFERENCE DONE**********")
 
