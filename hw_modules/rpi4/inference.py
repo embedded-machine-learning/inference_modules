@@ -1,7 +1,9 @@
-# this script takes a neural network in the Tensorflow format
-# converts it to TFLite and runs inference on the generated model using TFLite Interpereter and PyARMNN
+# this script takes a neural network in the TFLite format
+# And runs inference on the generated model using TFLite Interpereter, PyARMNN and a precompiled TFLite benchmark file
+# Install Guide for Pyarmnn can be found here: https://developer.arm.com/documentation/102557/2108/Device-specific-installation/Raspberry-Pi-installation?lang=en
+# Install Guide for TFLite Interpreter can be found here: https://www.tensorflow.org/lite/guide/python
 
-# Example: python3 inference.py --model_path TODO
+# Example: python3 hw_modules/rpi4/inference.py --tflite_model ~/models/mobilenet_v1_1.0_224.tflite --save_dir tmp -n 10 -s 0 --bench_file linux_aarch64_benchmark_model --print --interpreter --pyarmnn
 
 import logging
 import os, sys
@@ -11,9 +13,6 @@ from datetime import datetime
 from statistics import median
 
 import numpy as np
-import pyarmnn as ann
-import tflite_runtime.interpreter as tflite
-
 
 __author__ = "Matvey Ivanov"
 __copyright__ = "Christian Doppler Laboratory for Embedded Machine Learning"
@@ -27,15 +26,10 @@ def optimize_network(model_path="./models/model.tflite", network = "tmp_net", in
 
 def run_network(tflite_path = "./tmp/model.tflite", save_dir = "./tmp", niter = 10, print_bool = False, sleep_time=0,
                 use_tflite=False, use_pyarmnn=False):
-    # this function only makes sense if one framework is used
-    if use_tflite:
-        use_pyarmnn = False
-
     # create report directory if it doesn't exist yet
     if not os.path.isdir(save_dir):
         os.mkdir(save_dir)
 
-    times = [] # list for latencies
     # simple sanity check for sleep time
     if sleep_time and sleep_time > 10:
         print("Time between iterations was set to {0:.2f}s. Please choose a float < 10".format(sleep_time))
@@ -45,6 +39,8 @@ def run_network(tflite_path = "./tmp/model.tflite", save_dir = "./tmp", niter = 
         return
 
     if use_tflite:
+        import tflite_runtime.interpreter as tflite
+        times = [] # list for latencies
         interpreter = tflite.Interpreter(model_path=tflite_path)
         interpreter.allocate_tensors()
 
@@ -76,13 +72,35 @@ def run_network(tflite_path = "./tmp/model.tflite", save_dir = "./tmp", niter = 
                                                              dtype=input_details[0]["dtype"])
         interpreter.set_tensor(input_details[0]['index'], input_data)
         interpreter.invoke() # conduct warm up inference
-    elif use_pyarmnn:
+        start_time = datetime.utcnow()
+
+        # run inference
+        try:
+            for iteration in range(niter): # iterate over inferences
+                inf_start_time = time()
+
+                interpreter.invoke() # TFLite inference
+
+                t_inf_ms = (time() - inf_start_time)*1000
+                print("iteration {} took {:.3f} ms".format(iteration, t_inf_ms)) if print_bool else None
+                times.append(t_inf_ms)
+                sleep(sleep_time)
+        except KeyboardInterrupt:
+            print("\nInference loop exited via KeyboardInterrupt (ctrl + c)")
+
+        total_duration_sec = (datetime.utcnow() - start_time).total_seconds()
+        times.sort()
+        print("\nExecution time median: {:.3f} ms".format(median(times))) if print_bool else None
+
+    if use_pyarmnn:
+        import pyarmnn as ann
+        times = [] # list for latencies
         parser = ann.ITfLiteParser()
         network = parser.CreateNetworkFromBinaryFile(tflite_path)
 
         options = ann.CreationOptions()
         runtime = ann.IRuntime(options)
-
+        print("Supported Backends:",runtime.GetDeviceSpec())
         preferredBackends = [ann.BackendId('CpuAcc'), ann.BackendId('CpuRef')]
         opt_network, messages = ann.Optimize(network, preferredBackends, runtime.GetDeviceSpec(),
                                              ann.OptimizerOptions())
@@ -110,25 +128,25 @@ def run_network(tflite_path = "./tmp/model.tflite", save_dir = "./tmp", niter = 
         input_tensors = ann.make_input_tensors([input_binding_info], [input_data])
 
         runtime.EnqueueWorkload(0, input_tensors, output_tensors) # conduct warm up inference
+        start_time = datetime.utcnow()
 
-    start_time = datetime.utcnow()
-    try:
-        for iteration in range(niter): # iterate over inferences
-            inf_start_time = time()
+        # run inference
+        try:
+            for iteration in range(niter): # iterate over inferences
+                inf_start_time = time()
 
-            interpreter.invoke() if use_tflite else None # TFLite inference
-            runtime.EnqueueWorkload(0, input_tensors, output_tensors) if use_pyarmnn else None # PyARMNN inference
+                runtime.EnqueueWorkload(0, input_tensors, output_tensors) # PyARMNN inference
 
-            t_inf_ms = (time() - inf_start_time)*1000
-            print("iteration {} took {:.3f} ms".format(iteration, t_inf_ms)) if print_bool else None
-            times.append(t_inf_ms)
-            sleep(sleep_time)
-    except KeyboardInterrupt:
-        print("\nInference loop exited via KeyboardInterrupt (ctrl + c)")
+                t_inf_ms = (time() - inf_start_time)*1000
+                print("iteration {} took {:.3f} ms".format(iteration, t_inf_ms)) if print_bool else None
+                times.append(t_inf_ms)
+                sleep(sleep_time)
+        except KeyboardInterrupt:
+            print("\nInference loop exited via KeyboardInterrupt (ctrl + c)")
 
-    total_duration_sec = (datetime.utcnow() - start_time).total_seconds()
-    times.sort()
-    print("\nExecution time median: {:.3f} ms".format(median(times))) if print_bool else None
+        total_duration_sec = (datetime.utcnow() - start_time).total_seconds()
+        times.sort()
+        print("\nExecution time median: {:.3f} ms".format(median(times))) if print_bool else None
 
 
 def run_compiled_bench(tflite_path = "./tmp/model.tflite", save_dir = "./tmp", niter = 100, print_bool = False, 
