@@ -1,1 +1,1 @@
-from power_measurement_utils import power_measurement
+from powerutils import measurement

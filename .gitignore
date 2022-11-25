@@ -1,12 +1,13 @@
 __pycache__
 venv*
 .idea
-hw_modules/ncs2/tmp
+*tmp
 *.xml
 *.pb
 *.bin
 *.tflite
 *.onnx
+*.egg-info
 
 # some platforms (RPi) cannot convert or compile networks
 # include these example annet networks in the repo
