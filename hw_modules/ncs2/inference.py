@@ -198,7 +198,7 @@ def main():
     parser.add_argument("-sf", '--save_folder', default='./tmp', help='folder to save the resulting files', required=False)
     parser.add_argument("-d", '--device', default='CPU',  help='device to run inference on', required=False)
     parser.add_argument("-n", '--niter', default=10, type=int, help='number of iterations', required=False)
-    parser.add_argument("-s", '--sleep', type=float, help='time to sleep between inferences in seconds', required=False)
+    parser.add_argument("-s", '--sleep', type=float, default=0, help='time to sleep between inferences in seconds', required=False)
     parser.add_argument('--nireq', default=1,  help='number of inference requests, used in async mode', required=False)
     parser.add_argument("-rd", '--report_dir', default='reports', help='Directory to save reports into', required=False)
     parser.add_argument('--print', dest='print', action='store_true')
