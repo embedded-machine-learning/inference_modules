@@ -31,4 +31,8 @@ pip3 install -e .
 
 ## Versions
 
-The modules were tested on Ubuntu 18.04 and Python3.6
+The modules were tested on Ubuntu 18.04 and 20.04, with Python3.6 and Python3.8
+
+## Requirements
+
+Different parts of the repository work with different pip packages. To avoid filling the virtual environments with too many packages, the requirements can be installed separately. 
