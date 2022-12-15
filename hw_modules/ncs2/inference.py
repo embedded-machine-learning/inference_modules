@@ -82,8 +82,9 @@ def optimize_network(model_path="./models/model.pb", source_fw = "tf", network =
 
 def run_network_new(xml_path = "./tmp/model.xml", report_dir = "./tmp", device = "MYRIAD", niter = 10, print_bool = False, sleep_time=0):
     # initialize power measurement
-    pm = measurement.power_measurement(sampling_rate=500000, data_dir=report_dir, max_duration=60, port=0) # port 0 for NCS2
-    model_name_kwargs = {"model_name": xml_path.split(".xml")[0].split("/")[-1]}
+    pm = measurement.power_measurement(sampling_rate=500000, data_dir=report_dir, max_duration=60, port=1) # port 1 for NCS2
+    model_name = xml_path.split(".xml")[0].split("/")[-1]
+    model_name_kwargs = {"model_name": model_name}
     ie = IECore()
 
     led = digitalio.DigitalInOut(board.C0)
@@ -145,8 +146,9 @@ def run_network_new(xml_path = "./tmp/model.xml", report_dir = "./tmp", device =
 
     total_duration_sec = (datetime.utcnow() - start_time).total_seconds()
     times.sort()
+    time_median = median(times)
     if print_bool:
-        print("Execution time median: {:.3f} ms".format(median(times)))
+        print("Execution time median: {:.3f} ms".format(time_median))
 
     perf_counts = True
 
@@ -157,6 +159,14 @@ def run_network_new(xml_path = "./tmp/model.xml", report_dir = "./tmp", device =
         perfs_count_list.append(exe_network.requests[0].get_perf_counts())
         if statistics:
             statistics.dump_performance_counters(perfs_count_list)
+
+        # rename performance counter csv
+        if os.path.isfile(os.path.join(report_dir, "benchmark_average_counters_report.csv")):
+            os.rename(os.path.join(report_dir, "benchmark_average_counters_report.csv"),
+                      os.path.join(report_dir, "bavg_{}.csv".format(model_name)))
+            print("average counter report was given a unique name")
+
+    return time_median
 
 
 def run_network(xml_path = "./tmp/model.xml", report_dir = "./tmp", hardware = "MYRIAD", batch = 1, nireq = 1, niter = 10, api = "async"):
