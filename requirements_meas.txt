@@ -18,7 +18,6 @@ pandas==1.4.2
 Pillow==9.0.1
 pkg_resources==0.0.0
 pluggy==1.0.0
--e git+ssh://git@github.com/embedded-machine-learning/powerutils.git@1ec992568775c73749a9a363f648e0d4d3aafa31#egg=powerutils
 progress==1.6
 protobuf==3.19.4
 py==1.11.0

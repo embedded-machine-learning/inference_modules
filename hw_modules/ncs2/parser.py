@@ -5,7 +5,7 @@
 # Example: python3 parser.py --infold tmp/ov_reports/ --outfold ./tmp/parse_output/
 
 import os, logging
-import pickle, pandas, json
+import pandas, json
 from pathlib import Path
 
 __author__ = "Matvey Ivanov"
@@ -71,13 +71,13 @@ def add_measured_to_input(time_df, input_df, measured_df):
     return time_df, input_df
 
 
-def read_report(report="", outfolder="./tmp/", format=None):
-    """Reads file in a pandas dataframe and writes layer data into a pickle file
+def read_report(report="", outfolder="./tmp/"):
+    """Reads file in a pandas dataframe and writes layer data into a json file
 
     Args:
-        outfolder: folder where the pickled data will be stored
+        outfolder: folder where the json data will be stored
         report: filename of the report where the data will be extracted
-        format: data format to save the data with - either pickle or json
+        format: data format to save the data with - json
 
     Returns: False if File does not exist 
     """
@@ -100,24 +100,17 @@ def read_report(report="", outfolder="./tmp/", format=None):
             elem = elem.replace("-", "_")
         data["LayerName"][i] = elem
 
-    # construct the pickle file name from the report name
+    # construct the json file name from the report name
     outfile = "".join(str(report).split(".csv")[0].split("/")[1])
     logging.debug(outfile)
-    
-    if format == "pickle":
-        # open a new file and write extracted and modified data using pickle
-        data.to_pickle(os.path.join(outfolder, outfile + ".p"))
-    elif format == "json":
-        data_js = data.to_json(os.path.join(outfolder, outfile + ".json"), orient='index')
-    else:
-        logging.debug("Format:", format, " not implemented!")
+    data_js = data.to_json(os.path.join(outfolder, outfile + ".json"), orient='index')
     
     return data
 
 def r2a(report):
     data = read_report(report)
 
-    if data is False:
+    if not data:
         return False
 
     data = data[data['ExecStatus'] == 'EXECUTED']
@@ -141,8 +134,7 @@ def extract_data_from_folder(infold, outfold):
     """
 
     # if the output data directory does not exist, create it
-    if not os.path.isdir(outfold):
-        os.mkdirs(outfold)
+    os.makedirs(outfold, exist_ok=True)
 
     # avg_count holds the csv filenames of the benchmark_average_counters containing layer data
     avg_count = [f for f in os.listdir(infold) if "benchmark_average_counters_report" in f]
@@ -150,7 +142,7 @@ def extract_data_from_folder(infold, outfold):
     # go over files and extract data
     for i, report in enumerate(avg_count):
         print(i + 1, ": parsing " + os.path.join(infold, report))
-        read_report(report=os.path.join(infold, report), outfolder=outfold, format="json")
+        read_report(report=os.path.join(infold, report), outfolder=outfold)
 
 
 if __name__ == "__main__":
@@ -159,7 +151,7 @@ if __name__ == "__main__":
     parser.add_argument("-if", '--infold', default='./report',
                         help='Folder containing reports', required=True)
     parser.add_argument("-of", '--outfold', default='report_async_extracted',
-                        help='folder which will contain the output pickle files', required=True)
+                        help='folder which will contain the output json files', required=True)
     args = parser.parse_args()
 
     extract_data_from_folder(args.infold, args.outfold)
