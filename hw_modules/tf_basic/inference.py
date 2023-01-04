@@ -56,10 +56,10 @@ def run_inference(pb, source_fw = "tf", network = "tmp_net", image = [1, 224, 22
         with open(str(save_folder)+'/timeline_01.json', 'w') as f:
             f.write(chrome_trace)
 
-    #start_time = time.clock()
-    #output = sess.run(output_tensor, feed_dict = {input: data})
-    #end_time = time.clock()
-    #print(end_time - start_time, "seconds")
+    start_time = time.clock()
+    output = sess.run(output_tensor, feed_dict = {input: data})
+    end_time = time.clock()
+    print(end_time - start_time, "seconds")
 
 
 if __name__ == "__main__":

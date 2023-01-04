@@ -31,6 +31,9 @@ def run_network(tflite_path = "./tmp/model.tflite", save_dir = "./tmp", niter = 
     # create report directory if it doesn't exist yet
     os.makedirs(save_dir, exist_ok=True)
 
+    start_time = datetime.utcnow()
+    times_times = [] # list for latencies
+
     # simple sanity check for sleep time
     if sleep_time and sleep_time > 10:
         print("Time between iterations was set to {0:.2f}s. Please choose a float < 10".format(sleep_time))

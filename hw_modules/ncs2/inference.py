@@ -83,7 +83,8 @@ def optimize_network(model_path="./models/model.pb", source_fw = "tf", network =
 def run_network_new(xml_path = "./tmp/model.xml", report_dir = "./tmp", device = "MYRIAD", niter = 10, print_bool = False, sleep_time=0):
     # initialize power measurement
     pm = measurement.power_measurement(sampling_rate=500000, data_dir=report_dir, max_duration=60, port=1) # port 1 for NCS2
-    model_name_kwargs = {"model_name": xml_path.split(".xml")[0].split("/")[-1]}
+    model_name_kwargs = {"model_name": str(xml_path).split(".xml")[0].split("/")[-1]}
+
     ie = IECore()
 
     led = digitalio.DigitalInOut(board.C0)
