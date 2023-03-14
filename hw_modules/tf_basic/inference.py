@@ -1,19 +1,19 @@
 import sys, time, logging
+import os
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
+from pathlib import Path
+
 from tensorflow.python.client import timeline
+tf.disable_v2_behavior()
+#tf.compat.v1.disable_eager_execution()
 
 
-def optimize_network(pb, source_fw = "tf", network = "tmp_net", image = [1, 224, 224, 3] , input_node = "data", save_folder = "./tmp"):
-    return True 
+def optimize_network(network_path = "", source_fw = "tf", network = "tmp_net", input_shape = [1, 224, 224, 3] , input_node = "Placeholder", save_folder = Path("./tmp")):
+    return {"network_path": network_path, "source_fw": source_fw, "network": network, "input_shape": input_shape, "input_node": input_node}
 
-
-def run_network(xml_path = None, report_dir = "./tmp", hardware = "MYRIAD", batch = 1, nireq = 1, niter = 10, api = "sync"):
-    return True
-
-
-def run_inference(pb, source_fw = "tf", network = "tmp_net", image = [1, 224, 224, 3] , input_node = "Placeholder", output_node = "flatten_Reshape", save_folder = "./database/benchmarks/tmp/"):
-    model_filepath = str(pb)
+def run_network(network_path = "", source_fw = "tf", network = "tmp_net", input_shape = [1, 224, 224, 3] , input_node = "Placeholder", output_node = "flatten_Reshape", save_folder = Path("./database/benchmarks/tmp/")):
+    model_filepath = str(network_path)
 
     with tf.gfile.GFile(model_filepath, 'rb') as f:
         graph_def = tf.GraphDef()
@@ -25,8 +25,21 @@ def run_inference(pb, source_fw = "tf", network = "tmp_net", image = [1, 224, 22
     wrapped_import = tf.compat.v1.wrap_function(_imports_graph_def, [])
     graph = wrapped_import.graph
 
+    out_nodes = []
+    in_nodes = []
+    for n in graph_def.node:
+        if len(n.input) > 0:
+            in_nodes.extend(n.input)
+        out_nodes.append(n.name)
+
+    """remove all nodes that are in input list from output list"""
+    out_nodes = [n for n in out_nodes if n not in in_nodes]
+    logging.debug(f"Output nodes: {out_nodes}")
+    
+
     print('Check out the input placeholders:')
     nodes = [n.name + ' => ' +  n.op for n in graph_def.node if n.op in ('Placeholder')]
+    inputs = [n.op for n in graph_def.node if n.op in ('Placeholder')]
     for node in nodes:
         print(node)
     in_shape = []
@@ -41,20 +54,27 @@ def run_inference(pb, source_fw = "tf", network = "tmp_net", image = [1, 224, 22
     sess = tf.Session(graph = graph)
 
     print("Run TF Profiler")
+
     with tf.Session(graph = graph) as sess:
         # add additional options to trace the session execution
         options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
         run_metadata = tf.RunMetadata()
-        input = graph.get_tensor_by_name("Placeholder:0")
-        output_tensor = graph.get_tensor_by_name("flatten_Reshape:0")
+        input = graph.get_tensor_by_name(f"{inputs[0]}:0")
+        output_tensor = graph.get_tensor_by_name(f"{out_nodes[0]}:0")
         output = sess.run(output_tensor, feed_dict = {input: data}, options=options, run_metadata=run_metadata)
 
         # Create the Timeline object, and write it to a json file
         fetched_timeline = timeline.Timeline(run_metadata.step_stats)
         chrome_trace = fetched_timeline.generate_chrome_trace_format()
-        print(save_folder)
-        with open(str(save_folder)+'/timeline_01.json', 'w') as f:
+
+        # create a folder to save the timeline file
+        if not os.path.exists(save_folder):
+            os.makedirs(save_folder)
+
+        out = f'{str(save_folder)}/{network}.json'
+        with open(out, 'w') as f:
             f.write(chrome_trace)
+        return out
 
     #start_time = time.clock()
     #output = sess.run(output_tensor, feed_dict = {input: data})

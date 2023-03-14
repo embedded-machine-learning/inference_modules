@@ -16,7 +16,6 @@ def read_report(report, outfolder="./", out_file=None, format=None):
 
     f = open(report)
     report = json.load(f)
-    #print(report)
 
     result = []
 
@@ -39,7 +38,7 @@ def read_report(report, outfolder="./", out_file=None, format=None):
         with open(os.path.join(outfolder, out_file + ".json"), "wb") as out_f:
             json.dump(data, out_f)
     else:
-        logging.debug("Format:", format, " not implemented!")
+        logging.debug(f"Format: {format} not implemented!")
     
     return data
 

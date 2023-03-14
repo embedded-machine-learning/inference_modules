@@ -103,14 +103,14 @@ def read_report(report="", outfolder="./tmp/"):
     # construct the json file name from the report name
     outfile = "".join(str(report).split(".csv")[0].split("/")[1])
     logging.debug(outfile)
-    data_js = data.to_json(os.path.join(outfolder, outfile + ".json"), orient='index')
+    #data_js = data.to_json(os.path.join(outfolder, outfile + ".json"), orient='index')
     
     return data
 
 def r2a(report):
     data = read_report(report)
 
-    if not data:
+    if data is False:
         return False
 
     data = data[data['ExecStatus'] == 'EXECUTED']
