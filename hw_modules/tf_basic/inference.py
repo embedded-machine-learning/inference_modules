@@ -76,10 +76,10 @@ def run_network(network_path = "", source_fw = "tf", network = "tmp_net", input_
             f.write(chrome_trace)
         return out
 
-    #start_time = time.clock()
-    #output = sess.run(output_tensor, feed_dict = {input: data})
-    #end_time = time.clock()
-    #print(end_time - start_time, "seconds")
+    start_time = time.clock()
+    output = sess.run(output_tensor, feed_dict = {input: data})
+    end_time = time.clock()
+    print(end_time - start_time, "seconds")
 
 
 if __name__ == "__main__":

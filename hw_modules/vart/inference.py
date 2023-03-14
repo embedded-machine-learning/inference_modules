@@ -27,7 +27,7 @@ SAVE_FILES = './savedfiles/'
 server = "192.168.1.18"
 username = "root"
 password = "root"
-xilinx_image = '/home/intel-nuc/marco/marco/inference-modules/hw_modules/vart/json_files/Standard_image.json'
+xilinx_image = '/home/mwuschnig/Standard_image.json'
 
 duration_measurement = 2
 datalogger_port = 3
