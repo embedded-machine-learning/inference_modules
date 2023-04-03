@@ -17,6 +17,7 @@ from time import sleep, time
 from datetime import datetime
 from statistics import median
 from yaml.loader import SafeLoader
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -28,8 +29,9 @@ __license__ = "Apache 2.0"
 
 
 class rpi4Class:
-    def __init__(self):
-        f = open(os.path.abspath("../config.yaml"), "r")
+    def __init__(self, config_file="../rpi4.yaml"):
+        self.config_file = config_file
+        f = open(os.path.abspath(config_file), "r")
         data = yaml.load(f, Loader=SafeLoader)
         f.close()
         self.ssh_ip = data[0]['rpi4']['ssh_ip']
@@ -50,15 +52,17 @@ class rpi4Class:
 
 
 
-    def optimize_network(model_path="./models/model.tflite", network = "tmp_net", input_shape = [1, 224, 224, 3], input_node = "data", save_folder = "./tmp"):
+    def optimize_network(self, model_path="./models/model.pb", source_fw = "tflite", network = "tmp_net", input_shape = [1, 224, 224, 3],
+                     input_node = "data", save_folder = "./tmp"):
         # TFLite does not support model conversion and the full Tensorflow cannot be installed on the RPi4
-        return model_path
+        print(network)
+        return {"model_path": model_path, "tflite_model": network}
 
 
 
 
 
-    def run_network_ssh(self, tflite_model = "model.tflite", model_path="./tmp/", save_dir = "./tmp", niter = 10, print_bool = False, sleep_time=0,
+    def run_network_ssh(self, tflite_model = "model", model_path="./tmp/", save_dir = "./tmp", niter = 10, print_bool = False, sleep_time=0,
                     use_tflite=False, use_pyarmnn=False):
         
         print("run ssh")
@@ -72,21 +76,30 @@ class rpi4Class:
         else:
             print("*****in ssh*****")
             
-            c.put("/home/tgrill/SoC_EML_ANNETTE/src/annette/hw_modules/hw_modules/rpi4/inference.py", "tgrill/test_annette_ssh/inference")
-            c.put("/home/tgrill/SoC_EML_ANNETTE/src/annette/hw_modules/hw_modules/config.yaml", "tgrill/test_annette_ssh")
-            c.put("/home/tgrill/SoC_EML_ANNETTE/src/annette/hw_modules/hw_modules/rpi4/linux_aarch64_benchmark_model", "tgrill/test_annette_ssh/inference")
-            c.put(model_path + tflite_model, "tgrill/test_annette_ssh/inference")
+            abs_folder = "/home/ubuntu/mwess/annette_ssh"
+
+            c.run(f"mkdir -p {abs_folder}/inference/tmp")
+            c.put(__file__, f"{abs_folder}/inference")
+            c.put(self.config_file, abs_folder)
+
+
+            c.put(str(Path(__file__).parent.absolute()) + "/linux_aarch64_benchmark_model", f"{abs_folder}/inference")
+            c.put(str(model_path), "mwess/annette_ssh/inference")
             
-            exec_command = "source /home/ubuntu/tgrill/test_annette_ssh/.venv_annette/bin/activate && " + "cd tgrill/test_annette_ssh/inference && " + "python3 inference.py --no-ssh --model_path /home/ubuntu/tgrill/test_annette_ssh/inference/ --tflite_model " + tflite_model + " --niter " + str(niter) + " --sleep " + str(sleep_time) + ""
+
+
+            exec_command = f"source {abs_folder}/.venv_annette/bin/activate && " + f"cd {abs_folder}/inference && " + f"python3 inference.py --no-ssh --model_path {abs_folder}/inference/ --tflite_model " + tflite_model+".tflite --niter " + str(niter) + " --sleep " + str(sleep_time) + ""
             
             c.run(exec_command)
             
 
-            c.get("tgrill/test_annette_ssh/inference/tmp/mobilenet_v1_1.0_224_1thr.csv", "/home/tgrill/SoC_EML_ANNETTE/src/annette/hw_modules/hw_modules/rpi4/tmp/")
+            c.get(f"{abs_folder}/inference/tmp/{tflite_model}_1thr.csv", save_dir + "/report.csv")
 
         c.close()
 
         print("rpi ssh done")
+
+        return Path(os.path.join(save_dir, "report.csv"))
 
 
 

@@ -90,6 +90,7 @@ def r2a(report="report.csv", outfolder="./tmp/"):
     if data is False:
         return False
 
+    data["avg [ms]"] = data["avg [ms]"].astype(float)
     result = pandas.DataFrame(data[["name","avg [ms]"]].to_numpy(),columns=['name','time(ms)'])
     print(result)
 
