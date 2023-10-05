@@ -1,5 +1,4 @@
-# this script calls the inference modules on a remote RPi4 ubuntu aarch64 server
-
+# this script calls the inference modules on a remote imx8 ubuntu aarch64 server
 
 # this script takes a neural network in the TFLite format
 # And runs inference on the generated model using TFLite Interpereter, PyARMNN and a precompiled TFLite benchmark file
@@ -7,7 +6,7 @@
 # Install Guide for TFLite Interpreter can be found here: https://www.tensorflow.org/lite/guide/python
 # Performance measurement of TFLite https://www.tensorflow.org/lite/performance/measurement
 
-# Example: python3 hw_modules/rpi4/inference.py --tflite_model ~/models/mobilenet_v1_1.0_224.tflite --save_dir tmp -n 10 -s 0 --bench_file linux_aarch64_benchmark_model --print --interpreter --pyarmnn
+# Example: python3 hw_modules/imx8/inference.py --tflite_model ~/models/mobilenet_v1_1.0_224.tflite --save_dir tmp -n 10 -s 0 --bench_file linux_aarch64_benchmark_model --print --interpreter --pyarmnn
 
 import logging
 import os, fabric2
@@ -18,48 +17,47 @@ from datetime import datetime
 from statistics import median
 from yaml.loader import SafeLoader
 from pathlib import Path
+from pprint import pprint
 
 import numpy as np
 import pandas as pd
 
-__author__ = "Matvey Ivanov"
+__author__ = "Matthias Wess"
 __copyright__ = "Christian Doppler Laboratory for Embedded Machine Learning"
 __license__ = "Apache 2.0"
 
 
 
-class rpi4Class:
-    def __init__(self, config_file="../rpi4.yaml"):
+class imx8Class:
+    def __init__(self, config_file="config.yaml"):
         self.config_file = config_file
         f = open(os.path.abspath(config_file), "r")
         data = yaml.load(f, Loader=SafeLoader)
         f.close()
-        self.ssh_ip = data[0]['rpi4']['ssh_ip']
-        self.ssh_key = data[0]['rpi4']['ssh_key']
-        self.ssh_user = data[0]['rpi4']['ssh_user']
-        self.port = data[0]['rpi4']['port']
-        self.tflite_model = data[0]['rpi4']['tflite_model']
-        self.model_path = data[0]['rpi4']['model_path']
-        self.save_dir = data[0]['rpi4']['save_dir']
-        self.niter = data[0]['rpi4']['niter']
-        self.threads = data[0]['rpi4']['threads']
-        self.bench_file = data[0]['rpi4']['bench_file']
-        self.ssh = data[0]['rpi4']['ssh']
-        self.print = data[0]['rpi4']['print']
-        self.interpreter = data[0]['rpi4']['interpreter']
-        self.pyarmnn = data[0]['rpi4']['pyarmnn']
-        self.sleep = data[0]['rpi4']['sleep']
+        hw = 'imx8'
+        self.ssh_ip = data[hw]['ssh_ip']
+        self.ssh_key = data[hw]['ssh_key']
+        self.ssh_user = data[hw]['ssh_user']
+        self.port = data[hw]['port']
+        self.tflite_model = data[hw]['tflite_model']
+        self.model_path = data[hw]['model_path']
+        self.save_dir = data[hw]['save_dir']
+        self.niter = data[hw]['niter']
+        self.threads = data[hw]['threads']
+        self.bench_file = data[hw]['bench_file']
+        self.ssh = data[hw]['ssh']
+        self.print = data[hw]['print']
+        self.interpreter = data[hw]['interpreter']
+        self.pyarmnn = data[hw]['pyarmnn']
+        self.sleep = data[hw]['sleep']
 
 
 
-    def optimize_network(self, model_path="./models/model.pb", source_fw = "tflite", network = "tmp_net", input_shape = [1, 224, 224, 3],
+    def optimize_network(self, model_path="./models/model.tflite", source_fw = "tflite", network = "tmp_net", input_shape = [1, 224, 224, 3],
                      input_node = "data", save_folder = "./tmp"):
-        # TFLite does not support model conversion and the full Tensorflow cannot be installed on the RPi4
+        # TFLite does not support model conversion and the full Tensorflow cannot be installed on the IMX8 
         print(network)
         return {"model_path": model_path, "tflite_model": network}
-
-
-
 
 
     def run_network_ssh(self, tflite_model = "model", model_path="./tmp/", save_dir = "./tmp", niter = 10, print_bool = False, sleep_time=0,
@@ -76,30 +74,30 @@ class rpi4Class:
         else:
             print("*****in ssh*****")
             
-            abs_folder = "/home/ubuntu/mwess/annette_ssh"
+            abs_folder = f"/home/{self.ssh_user}/annette_ssh"
 
             c.run(f"mkdir -p {abs_folder}/inference/tmp")
-            c.put(__file__, f"{abs_folder}/inference")
-            c.put(self.config_file, abs_folder)
 
+            path = Path(f'{abs_folder}/inference', tflite_model)
+            # get the parent directory of the model
+            c.run(f"mkdir -p  {str(path.parents[0])}")            
+            print(str(path.parents[0]))
 
-            c.put(str(Path(__file__).parent.absolute()) + "/linux_aarch64_benchmark_model", f"{abs_folder}/inference")
-            c.put(str(model_path), "mwess/annette_ssh/inference")
+            c.put(f"{str(model_path)}/{tflite_model}.tflite", f"{str(path.parents[0])}")
             
 
-
-            exec_command = f"source {abs_folder}/.venv_annette/bin/activate && " + f"cd {abs_folder}/inference && " + f"python3 inference.py --no-ssh --model_path {abs_folder}/inference/ --tflite_model " + tflite_model+".tflite --niter " + str(niter) + " --sleep " + str(sleep_time) + ""
+            exec_command = f"USE_GPU_INFERENCE=0 /usr/bin/tensorflow-lite-2.10.0/examples/benchmark_model  --enable_op_profiling=true --graph={abs_folder}/inference/{tflite_model}.tflite --enable_op_profiling=true --external_delegate_path=/usr/lib/libvx_delegate.so --num_runs={str(niter)} --run_delay={str(sleep_time)} --profiling_output_csv_file={abs_folder}/inference/tmp/data.csv"
             
             c.run(exec_command)
             
 
-            c.get(f"{abs_folder}/inference/tmp/{tflite_model}_1thr.csv", save_dir + "/report.csv")
+            c.get(f"{abs_folder}/inference/tmp/data.csv", str(save_dir) + "/report.csv")
 
         c.close()
 
         print("rpi ssh done")
 
-        return Path(save_dir, "report.csv")
+        return Path(os.path.join(save_dir, "report.csv"))
 
 
 
@@ -332,29 +330,29 @@ class rpi4Class:
 
 def main():
 
-    rpi4 = rpi4Class()
+    imx8 = imx8Class()
 
 
     import argparse
-    parser = argparse.ArgumentParser(description='Raspberry Pi 4 Inference Module')
-    parser.add_argument("-tfl", '--tflite_model', default=rpi4.tflite_model, help='Name of TFLite model file', required=False)
-    parser.add_argument("-mp", '--model_path', default=rpi4.model_path, help='Path to dir of model', required=False)
-    parser.add_argument("-sd", '--save_dir', default=rpi4.save_dir, help='folder to save the resulting files', required=False)
-    parser.add_argument("-n", '--niter', default=rpi4.niter, type=int, help='number of iterations', required=False)
-    parser.add_argument("-s", '--sleep', default=rpi4.sleep, type=float, help='time to sleep between inferences in seconds', required=False)
-    parser.add_argument("-thr", '--threads', default=rpi4.threads, type=int, help='number of threads to run compiled bench on', required=False)
-    parser.add_argument("-bf", '--bench_file', default=rpi4.bench_file, type=str, help='path to compiled benchmark file', required=False)
+    parser = argparse.ArgumentParser(description='IMX8 Inference Module')
+    parser.add_argument("-tfl", '--tflite_model', default=imx8.tflite_model, help='Name of TFLite model file', required=False)
+    parser.add_argument("-mp", '--model_path', default=imx8.model_path, help='Path to dir of model', required=False)
+    parser.add_argument("-sd", '--save_dir', default=imx8.save_dir, help='folder to save the resulting files', required=False)
+    parser.add_argument("-n", '--niter', default=imx8.niter, type=int, help='number of iterations', required=False)
+    parser.add_argument("-s", '--sleep', default=imx8.sleep, type=float, help='time to sleep between inferences in seconds', required=False)
+    parser.add_argument("-thr", '--threads', default=imx8.threads, type=int, help='number of threads to run compiled bench on', required=False)
+    parser.add_argument("-bf", '--bench_file', default=imx8.bench_file, type=str, help='path to compiled benchmark file', required=False)
 
-    parser.add_argument('--ssh', dest='ssh', action='store_true', default=rpi4.ssh)
+    parser.add_argument('--ssh', dest='ssh', action='store_true', default=imx8.ssh)
     parser.add_argument('--no-ssh', dest='ssh', action='store_false')
 
-    parser.add_argument('--print', dest='print', action='store_true', default=rpi4.print)
+    parser.add_argument('--print', dest='print', action='store_true', default=imx8.print)
     parser.add_argument('--no-print', dest='print', action='store_false')
 
-    parser.add_argument('--interpreter', dest='interpreter', action='store_true', default=rpi4.interpreter)
+    parser.add_argument('--interpreter', dest='interpreter', action='store_true', default=imx8.interpreter)
     parser.add_argument('--no-interpreter', dest='interpreter', action='store_false')
 
-    parser.add_argument('--pyarmnn', dest='pyarmnn', action='store_true', default=rpi4.pyarmnn)
+    parser.add_argument('--pyarmnn', dest='pyarmnn', action='store_true', default=imx8.pyarmnn)
     parser.add_argument('--no-pyarmnn', dest='pyarmnn', action='store_false')
 
     args = parser.parse_args()
@@ -364,33 +362,11 @@ def main():
     print("in main tflite path", tflite_path)
 
 
-    if not args.pyarmnn and not args.interpreter and not args.bench_file:
-        logging.error("No Runtime chosen, please choose either PyARMNN, the TFLite Interpreter or provide a compiled benchmark file")
-        return
-
     if args.ssh:
-        rpi4.run_network_ssh(tflite_model=args.tflite_model, model_path=args.model_path, save_dir=args.save_dir, niter=args.niter,
+        imx8.run_network_ssh(tflite_model=args.tflite_model, model_path=args.model_path, save_dir=args.save_dir, niter=args.niter,
                         print_bool=args.print, sleep_time=args.sleep, use_tflite=args.interpreter, use_pyarmnn=args.pyarmnn)
         
-
-    # if TFLite model is provided, use it for inference
-    elif args.tflite_model and os.path.isfile(tflite_path):
-        print("run tflite")
-        rpi4.run_network(tflite_path=tflite_path, save_dir=args.save_dir, niter=args.niter,
-                        print_bool=args.print, sleep_time=args.sleep, use_tflite=args.interpreter, use_pyarmnn=args.pyarmnn)
-    else:
-        # if no neural network models are provided, return
-        logging.error("Invalid model path {} passed.".format(args.tflite_model))
-        return
-
-
-    # run inference using the provided benchmark file if the benchmark file is valid
-    if args.bench_file and os.path.isfile(args.bench_file) and not args.ssh:
-        print("********Bench********")
-        rpi4.run_compiled_bench(tflite_path=tflite_path, save_dir=args.save_dir, niter=args.niter, print_bool=args.print, 
-        sleep_time=args.sleep, use_tflite=args.interpreter, use_pyarmnn=args.pyarmnn, bench_file=args.bench_file, num_threads = args.threads)
-
-    logging.info("\n**********RPI INFERENCE DONE**********")
+    logging.info("\n**********IMX8 INFERENCE DONE**********")
 
 
 if __name__ == "__main__":

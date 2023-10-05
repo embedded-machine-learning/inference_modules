@@ -81,13 +81,15 @@ def optimize_network(model_path="./models/model.pb", source_fw = "tf", network =
     return {"network_path": xml_path}
 
 
-def run_network_new(network_path = "./tmp/model.xml", report_dir = "./tmp", device = "MYRIAD", niter = 10, print_bool = False, sleep_time=0):
+def run_network_new(network_path = "./tmp/model.xml", report_dir = "./tmp", device = "MYRIAD", niter = 10, print_bool = False, sleep_time=0, port=None):
     # initialize power measurement
-    #pm = measurement.power_measurement(sampling_rate=500000, data_dir=report_dir, max_duration=60, port=1) # port 1 for NCS2
+    if port is not None:
+        pm = measurement.power_measurement(sampling_rate=500000, data_dir=report_dir, max_duration=60, port=port) # port 1 for NCS2
     model_name = network_path.split(".xml")[0].split("/")[-1]
     model_name_kwargs = {"model_name": model_name}
     ie = IECore()
 
+    logging.info("\n**********MOVIDIUS FP16 EXECUTION**********")
     # check if /tmp/mvnc.mutex exists and delete
     if os.path.isfile("/tmp/mvnc.mutex"):
         os.remove("/tmp/mvnc.mutex")
@@ -127,7 +129,8 @@ def run_network_new(network_path = "./tmp/model.xml", report_dir = "./tmp", devi
         print("Invalid sleep time {0:.2f}s".format(sleep_time))
         return
     net_input = np.random.randint(0, 255, size=[n, c, h, w])
-    #pm.start_gather(model_name_kwargs)  # start power measurement
+    if port is not None:
+        pm.start_gather(model_name_kwargs)  # start power measurement
     try:
         for iteration in range(niter): # iterate over inferences
             led.value = False
@@ -146,8 +149,9 @@ def run_network_new(network_path = "./tmp/model.xml", report_dir = "./tmp", devi
         raise Exception(f"Wait for all requests is failed with status code {status}!")
 
     sleep(0.02)
-    #pm.end_gather(True) # end powermeasurement
-    #print("Power Measurement ended")
+    if port is not None:
+        pm.end_gather(True) # end powermeasurement
+        print("Power Measurement ended")
 
     total_duration_sec = (datetime.utcnow() - start_time).total_seconds()
     times.sort()
@@ -176,7 +180,7 @@ def run_network_new(network_path = "./tmp/model.xml", report_dir = "./tmp", devi
     return time_median
 
 
-def run_network(xml_path = "./tmp/model.xml", report_dir = "./tmp", hardware = "MYRIAD", batch = 1, nireq = 1, niter = 10, api = "async"):
+def run_network(network_path = "./tmp/model.xml", report_dir = "./tmp", device = "MYRIAD", batch = 1, nireq = 1, niter = 10, api = "async",sleep_time=0):
 
     if not os.path.isdir(report_dir):
         os.mkdir(report_dir)
@@ -190,8 +194,8 @@ def run_network(xml_path = "./tmp/model.xml", report_dir = "./tmp", hardware = "
     logging.info("\n**********OPENVINO STARTING INFERENCE**********")
 
     c_bench = ("python3 " + bench_app_file +
-    " -m "  + str(xml_path) +
-    " -d " + hardware +
+    " -m "  + str(network_path) +
+    " -d " + device +
     " -b " + str(batch) +
     " -api " + api +
     " -nireq " + str(nireq) +
@@ -199,6 +203,7 @@ def run_network(xml_path = "./tmp/model.xml", report_dir = "./tmp", hardware = "
     " --report_type average_counters" +
     " --report_folder " + str(report_dir))
 
+    print(c_bench)
     # start inference
     if os.system(c_bench):
         logging.info("An error has occured during benchmarking!")
