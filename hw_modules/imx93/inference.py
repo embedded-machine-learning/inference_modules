@@ -58,8 +58,11 @@ class imx93Class:
         # TFLite does not support model conversion and the full Tensorflow cannot be installed on the imx93
         #print with log
         logging.info("Optimize network method")
+        save_folder_cmd = Path(save_folder, network+"_vela.tflite").parent
+        # strip the file from the save_folder path
+        logging.debug(f"model_path: {model_path}, save_folder: {save_folder}, network: {network}")
         # execute vela compiler command vela --optimise Performance --accelerator-config ethos-u65-512 lite-model_edgetpu_vision_deeplab-edgetpu_fused_argmax_xs_1.tflite --verbose-config
-        cmd = f"vela --optimise Performance --accelerator-config ethos-u65-256 {model_path} --verbose-config --output-dir {save_folder}"
+        cmd = f"vela --optimise Performance --accelerator-config ethos-u65-256 {model_path} --verbose-config --output-dir {save_folder_cmd}"
         os.system(cmd)       
 
         # add vela to model_path

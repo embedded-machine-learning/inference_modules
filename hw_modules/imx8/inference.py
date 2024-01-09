@@ -83,7 +83,7 @@ class imx8Class:
             c.run(f"mkdir -p  {str(path.parents[0])}")            
             print(str(path.parents[0]))
 
-            c.put(f"{str(model_path)}/{tflite_model}.tflite", f"{str(path.parents[0])}")
+            c.put(f"{str(model_path)}", f"{str(path.parents[0])}")
             
 
             exec_command = f"USE_GPU_INFERENCE=0 /usr/bin/tensorflow-lite-2.10.0/examples/benchmark_model  --enable_op_profiling=true --graph={abs_folder}/inference/{tflite_model}.tflite --enable_op_profiling=true --external_delegate_path=/usr/lib/libvx_delegate.so --num_runs={str(niter)} --run_delay={str(sleep_time)} --profiling_output_csv_file={abs_folder}/inference/tmp/data.csv"

@@ -4,7 +4,7 @@ sys.path.append("./")
 from pathlib import Path
 import os
 
-import hw_modules.rpi4 as rpi4
+import annette.hw_modules.hw_modules.rpi4 as rpi4
 
 print(rpi4.__dict__)
 
