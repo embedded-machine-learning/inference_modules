@@ -5,7 +5,7 @@ from pathlib import Path
 import logging
 import os
 import multiprocessing
-import hw_modules.ncs2 as ncs2
+import annette.hw_modules.hw_modules.ncs2 as ncs2
 from powerutils import measurement
 
 
@@ -13,7 +13,7 @@ def test_run_network(network="annette_bench1.xml"):
 
     test_net = "/home/mivanov/projects/models/yolo/yolov5s_simpl.xml"
     #test_net = "/home/mivanov/projects/inference_modules/tests/ov_networks/annette_bench1.xml"
-    kw = {"xml_path": test_net, "report_dir":"./tmp", "device":"MYRIAD"}
+    kw = {"network_path": test_net, "report_dir":"./tmp", "device":"MYRIAD", "port": 1}
 
     ncs2.inference.run_network_new(**kw)
 

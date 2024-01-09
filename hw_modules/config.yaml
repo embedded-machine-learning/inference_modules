@@ -1,5 +1,5 @@
 ---
-- rpi4:
+rpi4:
     ssh_ip: 
     ssh_key: # path to key
     ssh_user: 
@@ -15,3 +15,51 @@
     interpreter: True
     pyarmnn: False
     sleep: 0.0 # time to sleep between inferences in seconds
+xavier:
+    ssh_ip: 192.168.1.12
+    ssh_key: /home/mwess/.ssh/id_rsa
+    ssh_user: cdleml
+    port: 22
+    tflite_model: # name of the tflite model
+    model_path: /home/mwess/models  # path to the dir of the model
+    save_dir: ./tmp
+    niter: 10 # number of iterations
+    threads: 1
+    bench_file: 
+    ssh: True
+    print: True
+    interpreter: True
+    pyarmnn: False
+    sleep: 0.2 # time to sleep between inferences in seconds
+imx93:
+    ssh_ip: 192.168.1.202
+    ssh_key: /home/mwess/.ssh/id_rsa
+    ssh_user: root
+    port: 22
+    tflite_model: # name of the tflite model
+    model_path: /home/mwess/models  # path to the dir of the model
+    save_dir: ./tmp
+    niter: 10 # number of iterations
+    threads: 1
+    bench_file: 
+    ssh: True
+    print: True
+    interpreter: True
+    pyarmnn: False
+    sleep: 0.2 # time to sleep between inferences in seconds
+imx8:
+    ssh_ip: 192.168.1.110
+    ssh_key: /home/mwess/.ssh/id_rsa
+    ssh_user: root
+    port: 22
+    tflite_model: # name of the tflite model
+    model_path: /home/mwess/models  # path to the dir of the model
+    save_dir: ./tmp
+    niter: 10 # number of iterations
+    threads: 1
+    bench_file: 
+    ssh: True
+    print: True
+    interpreter: True
+    pyarmnn: False
+    sleep: 0.2 # time to sleep between inferences in seconds
