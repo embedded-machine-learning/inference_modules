@@ -34,21 +34,21 @@ class rpi4Class:
         f = open(os.path.abspath(config_file), "r")
         data = yaml.load(f, Loader=SafeLoader)
         f.close()
-        self.ssh_ip = data[0]['rpi4']['ssh_ip']
-        self.ssh_key = data[0]['rpi4']['ssh_key']
-        self.ssh_user = data[0]['rpi4']['ssh_user']
-        self.port = data[0]['rpi4']['port']
-        self.tflite_model = data[0]['rpi4']['tflite_model']
-        self.model_path = data[0]['rpi4']['model_path']
-        self.save_dir = data[0]['rpi4']['save_dir']
-        self.niter = data[0]['rpi4']['niter']
-        self.threads = data[0]['rpi4']['threads']
-        self.bench_file = data[0]['rpi4']['bench_file']
-        self.ssh = data[0]['rpi4']['ssh']
-        self.print = data[0]['rpi4']['print']
-        self.interpreter = data[0]['rpi4']['interpreter']
-        self.pyarmnn = data[0]['rpi4']['pyarmnn']
-        self.sleep = data[0]['rpi4']['sleep']
+        self.ssh_ip = data['rpi4']['ssh_ip']
+        self.ssh_key = data['rpi4']['ssh_key']
+        self.ssh_user = data['rpi4']['ssh_user']
+        self.port = data['rpi4']['port']
+        self.tflite_model = data['rpi4']['tflite_model']
+        self.model_path = data['rpi4']['model_path']
+        self.save_dir = data['rpi4']['save_dir']
+        self.niter = data['rpi4']['niter']
+        self.threads = data['rpi4']['threads']
+        self.bench_file = data['rpi4']['bench_file']
+        self.ssh = data['rpi4']['ssh']
+        self.print = data['rpi4']['print']
+        self.interpreter = data['rpi4']['interpreter']
+        self.pyarmnn = data['rpi4']['pyarmnn']
+        self.sleep = data['rpi4']['sleep']
 
 
 

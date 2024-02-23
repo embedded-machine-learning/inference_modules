@@ -29,7 +29,6 @@ def read_report(report, outfolder="./", out_file=None, format=None):
 
     data = pandas.DataFrame(result, columns=['LayerName','Type','RunTime(ms)'])
 
-    
     if format == "pickle":
         # open a new file and write extracted and modified data using pickle
         with open(os.path.join(outfolder, out_file + ".p"), "wb") as out_f:
@@ -49,7 +48,6 @@ def r2a(report):
     result = pandas.DataFrame(data[['LayerName','RunTime(ms)']].to_numpy(),columns=['name','time(ms)'])
     print(data)
     print(result)
-
     return result
 
 

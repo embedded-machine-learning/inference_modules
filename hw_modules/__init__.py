@@ -1,1 +1,4 @@
-from powerutils import measurement
+try:
+    from powerutils import measurement
+except ImportError:
+    pass

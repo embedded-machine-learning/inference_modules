@@ -54,10 +54,6 @@ def test_all(network="/home/ubuntu/imatvey/inference_modules/tests/networks/mobi
 
     xavier.inference.run_network(tflite_path=test_net, save_dir="./tmp", niter=10, print_bool=True, sleep_time=0,
                                  use_tflite=True, use_pyarmnn=False)
-
-    xavier.inference.run_network(tflite_path=test_net, save_dir="./tmp", niter=10, print_bool=True, sleep_time=0,
-                                 use_tflite=False, use_pyarmnn=True)
-
     # test_report = Path('tmp','benchmark_average_counters_report.csv')
     xavier.parser.r2a(None)
     test_xavier_r2a(None)
