@@ -1,8 +1,6 @@
-
 import logging
 import os
 import yaml
-
 from time import sleep, time
 from datetime import datetime
 from statistics import median
@@ -27,12 +25,21 @@ __license__ = "Apache 2.0"
 
 
 class xavierClass:
-    def __init__(self, config_file="config.yaml"):
+    def __init__(self, config_file="config.yaml", hw=None):
+        # catch hw argument
+        if hw is None:
+            print("ERROR: Hardware not specified!")
+            return
+        # catch the case where the config file is not found
+        if not os.path.isfile(config_file):
+            print("ERROR: Config file not found!")
+            return
+        
+        # load the config file
         self.config_file = config_file
         f = open(os.path.abspath(config_file), "r")
         data = yaml.load(f, Loader=SafeLoader)
         f.close()
-        hw = 'xavier'
         self.ssh_ip = data[hw]['ssh_ip']
         self.ssh_key = data[hw]['ssh_key']
         self.ssh_user = data[hw]['ssh_user']
@@ -57,6 +64,8 @@ class xavierClass:
         quant_cmd = ""
         if quant == "int8":
             quant_cmd = " --int8"
+        else:
+            quant_cmd = " --fp16"
 
         import fabric2
         print(f"run ssh {self.ssh_key} {self.ssh_user} {self.ssh_ip}")
@@ -69,8 +78,8 @@ class xavierClass:
         else:
             print("*****in ssh*****")
 
-            abs_folder = "/media/cdleml/512GB/Users/mwess/annette_ssh"
-            print(model_path)
+            abs_folder = self.model_path
+            print("model_path", model_path)
             model_path = Path(model_path)
             network = Path(network)
             print(self.config_file)
@@ -79,9 +88,13 @@ class xavierClass:
             c.put(__file__, f"{abs_folder}/inference")
             c.put(self.config_file, f"{abs_folder}/inference")
             c.put(model_path, f"{abs_folder}/inference")
+            # check if the model was uploaded
+            c.run(f"ls -la {abs_folder}/inference")
+
+
+
             cmd = f"cd {abs_folder}/inference && /usr/src/tensorrt/bin/trtexec --onnx=./{model_path.name} {quant_cmd} --saveEngine=./tmp/{network.stem}.engine"
             c.run(cmd)
-
         # add .engine to model_path
         model_path = Path('tmp', network.stem + ".engine")
         print(model_path)
@@ -109,13 +122,48 @@ class xavierClass:
         else:
             print("*****in ssh*****")
 
-            abs_folder = "/media/cdleml/512GB/Users/mwess/annette_ssh"
+            abs_folder = self.model_path
+            #abs_folder = "/media/cdleml/512GB/Users/mwess/annette_ssh"
 
             exec_command = f"cd {abs_folder}/inference && /usr/src/tensorrt/bin/trtexec --loadEngine=./{model_path} --exportTimes={abs_folder}/inference/tmp/tmp.csv"
             c.run(exec_command)
             print(f"{abs_folder}/inference/tmp/tmp.csv")
             c.get(f"{abs_folder}/inference/tmp/tmp.csv",
                   str(save_dir) + "/xavier.csv")
+
+        c.close()
+
+        print("xavier ssh done")
+
+        return Path(os.path.join(save_dir, "xavier.csv"))
+
+    def run_network_ssh_perlayer(self, model_path="./tmp/model.engine",
+                        save_dir="./tmp", niter=10, print_bool=False,
+                        sleep_time=0, network="network", export="tmp"):
+        import fabric2
+        from powerutils import measurement
+
+        print("run ssh")
+
+        c = fabric2.Connection(host=self.ssh_ip, user=self.ssh_user,
+                               port=self.port, connect_kwargs={"key_filename": self.ssh_key})
+        c.open()
+
+        if not c.is_connected:
+            print("ERROR: No SSH connection")
+        else:
+            print("*****in ssh*****")
+
+            abs_folder = self.model_path
+            #abs_folder = "/media/cdleml/512GB/Users/mwess/annette_ssh"
+
+            exec_command = f"cd {abs_folder}/inference && /usr/src/tensorrt/bin/trtexec --loadEngine=./{model_path} --exportTimes={abs_folder}/inference/tmp/tmp.csv --exportProfile={abs_folder}/inference/tmp/profile.csv"
+            c.run(exec_command)
+            print(f"{abs_folder}/inference/tmp/tmp.csv")
+            c.get(f"{abs_folder}/inference/tmp/tmp.csv",
+                  str(save_dir) + "/xavier.csv")
+            c.get(f"{abs_folder}/inference/tmp/profile.csv",
+                  str(save_dir) + "/xavier_profile.csv")
 
         c.close()
 
